@@ -8,13 +8,21 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
+interface INFTAchievements {
+    function checkAndMintAchievements(
+        address player,
+        uint256 totalPredictions,
+        uint256 correctPredictions,
+        uint256 currentStreak,
+        uint256 quizCount
+    ) external;
+}
+
 contract GameFiCore is UniversalContract, Ownable, ReentrancyGuard {
     IGatewayZEVM public immutable gateway;
-
-    // Game token
     address public immutable guiToken;
+    address public nftAchievements;
 
-    // Game state
     struct Prediction {
         address player;
         uint256 predictedPrice;
@@ -22,6 +30,8 @@ contract GameFiCore is UniversalContract, Ownable, ReentrancyGuard {
         uint256 timestamp;
         bool resolved;
         bool correct;
+        uint256 confidence;
+        string asset;
     }
 
     struct Player {
@@ -31,68 +41,127 @@ contract GameFiCore is UniversalContract, Ownable, ReentrancyGuard {
         uint256 stakedAmount;
         uint256 lastQuizTime;
         uint256 achievements;
+        uint256 currentStreak;
+        uint256 bestStreak;
+        uint256 quizCount;
+        uint256 socialScore;
+        string preferredAsset;
+        bool isPremium;
+    }
+
+    struct Quiz {
+        uint256 id;
+        address player;
+        uint256 score;
+        uint256 totalQuestions;
+        uint256 timestamp;
+        string difficulty;
+        uint256 timeSpent;
+    }
+
+    struct DailyQuest {
+        string title;
+        string description;
+        string questType;
+        uint256 targetValue;
+        uint256 reward;
+        uint256 deadline;
+        bool active;
     }
 
     mapping(address => Player) public players;
     mapping(uint256 => Prediction) public predictions;
     mapping(address => uint256[]) public playerPredictions;
+    mapping(uint256 => Quiz) public quizzes;
+    mapping(address => uint256[]) public playerQuizzes;
+    mapping(uint256 => DailyQuest) public dailyQuests;
+    mapping(address => mapping(uint256 => bool)) public completedQuests;
 
     uint256 public nextPredictionId;
+    uint256 public nextQuizId;
+    uint256 public nextQuestId;
     uint256 public constant PREDICTION_WINDOW = 1 hours;
     uint256 public constant QUIZ_COOLDOWN = 24 hours;
+    uint256 public constant BASE_PREDICTION_REWARD = 20 * 1e18;
+    uint256 public constant QUIZ_BASE_REWARD = 30 * 1e18;
 
-    // Events
     event PredictionMade(
         address indexed player,
         uint256 indexed predictionId,
-        uint256 predictedPrice
+        uint256 predictedPrice,
+        string asset,
+        uint256 confidence
     );
     event PredictionResolved(
         uint256 indexed predictionId,
         uint256 actualPrice,
-        bool correct
+        bool correct,
+        uint256 accuracy
     );
-    event QuizCompleted(address indexed player, uint256 score, uint256 reward);
-    event RewardDistributed(
+    event QuizCompleted(
         address indexed player,
-        uint256 amount,
-        uint256 chainId
+        uint256 indexed quizId,
+        uint256 score,
+        uint256 reward
     );
-    event TokensStaked(address indexed player, uint256 amount);
+    event QuestCompleted(
+        address indexed player,
+        uint256 indexed questId,
+        uint256 reward
+    );
+    event StreakAchieved(address indexed player, uint256 streakCount);
+    event PremiumActivated(address indexed player, uint256 duration);
 
     constructor(address _gateway, address _guiToken) {
         gateway = IGatewayZEVM(_gateway);
         guiToken = _guiToken;
+        _initializeDailyQuests();
     }
 
-    // Universal contract function for cross-chain calls
+    function setNFTAchievements(address _nftAchievements) external onlyOwner {
+        nftAchievements = _nftAchievements;
+    }
+
     function onCall(
         MessageContext calldata context,
         address zrc20,
         uint256 amount,
         bytes calldata message
     ) external override onlyGateway {
-        // Decode message to determine action
         (uint8 action, bytes memory data) = abi.decode(message, (uint8, bytes));
 
         if (action == 1) {
-            // Make prediction
-            uint256 predictedPrice = abi.decode(data, (uint256));
-            _makePrediction(context.sender, predictedPrice);
+            (
+                uint256 predictedPrice,
+                uint256 confidence,
+                string memory asset
+            ) = abi.decode(data, (uint256, uint256, string));
+            _makePrediction(context.sender, predictedPrice, confidence, asset);
         } else if (action == 2) {
-            // Complete quiz
-            (uint256 score, uint256 answers) = abi.decode(
-                data,
-                (uint256, uint256)
+            (
+                uint256 score,
+                uint256 totalQuestions,
+                string memory difficulty,
+                uint256 timeSpent
+            ) = abi.decode(data, (uint256, uint256, string, uint256));
+            _completeQuiz(
+                context.sender,
+                score,
+                totalQuestions,
+                difficulty,
+                timeSpent
             );
-            _completeQuiz(context.sender, score, answers);
         } else if (action == 3) {
-            // Stake tokens
             _stakeTokens(context.sender, amount);
         } else if (action == 4) {
-            // Claim rewards
             uint256 targetChainId = abi.decode(data, (uint256));
             _claimRewards(context.sender, zrc20, targetChainId);
+        } else if (action == 5) {
+            uint256 questId = abi.decode(data, (uint256));
+            _completeQuest(context.sender, questId);
+        } else if (action == 6) {
+            uint256 duration = abi.decode(data, (uint256));
+            _activatePremium(context.sender, duration, amount);
         }
     }
 
@@ -102,8 +171,17 @@ contract GameFiCore is UniversalContract, Ownable, ReentrancyGuard {
         // Handle revert logic
     }
 
-    function _makePrediction(address player, uint256 predictedPrice) internal {
+    function _makePrediction(
+        address player,
+        uint256 predictedPrice,
+        uint256 confidence,
+        string memory asset
+    ) internal {
         require(predictedPrice > 0, "Invalid price prediction");
+        require(
+            confidence >= 1 && confidence <= 100,
+            "Invalid confidence level"
+        );
 
         uint256 predictionId = nextPredictionId++;
 
@@ -113,19 +191,31 @@ contract GameFiCore is UniversalContract, Ownable, ReentrancyGuard {
             actualPrice: 0,
             timestamp: block.timestamp,
             resolved: false,
-            correct: false
+            correct: false,
+            confidence: confidence,
+            asset: asset
         });
 
         playerPredictions[player].push(predictionId);
         players[player].totalPredictions++;
 
-        emit PredictionMade(player, predictionId, predictedPrice);
+        players[player].preferredAsset = asset;
+
+        emit PredictionMade(
+            player,
+            predictionId,
+            predictedPrice,
+            asset,
+            confidence
+        );
     }
 
     function _completeQuiz(
         address player,
         uint256 score,
-        uint256 answers
+        uint256 totalQuestions,
+        string memory difficulty,
+        uint256 timeSpent
     ) internal {
         Player storage playerData = players[player];
         require(
@@ -133,59 +223,120 @@ contract GameFiCore is UniversalContract, Ownable, ReentrancyGuard {
             "Quiz cooldown active"
         );
 
+        uint256 quizId = nextQuizId++;
+
+        quizzes[quizId] = Quiz({
+            id: quizId,
+            player: player,
+            score: score,
+            totalQuestions: totalQuestions,
+            timestamp: block.timestamp,
+            difficulty: difficulty,
+            timeSpent: timeSpent
+        });
+
+        playerQuizzes[player].push(quizId);
         playerData.lastQuizTime = block.timestamp;
-        playerData.score += score;
+        playerData.quizCount++;
 
-        // Calculate reward based on score
-        uint256 reward = (score * 100) / answers; // Base reward calculation
-        if (playerData.stakedAmount > 0) {
-            reward = (reward * 150) / 100; // 50% bonus for stakers
+        uint256 baseReward = QUIZ_BASE_REWARD;
+        uint256 accuracyBonus = (score * baseReward) / totalQuestions;
+
+        uint256 difficultyMultiplier = 100;
+        if (keccak256(bytes(difficulty)) == keccak256(bytes("hard"))) {
+            difficultyMultiplier = 150;
+        } else if (keccak256(bytes(difficulty)) == keccak256(bytes("easy"))) {
+            difficultyMultiplier = 75;
         }
 
-        // Mint rewards
-        if (reward > 0) {
-            IERC20(guiToken).transfer(player, reward * 1e18);
+        uint256 timeBonus = timeSpent < 300 ? 25 : 0;
+
+        uint256 totalReward = (accuracyBonus *
+            difficultyMultiplier *
+            (100 + timeBonus)) / 10000;
+
+        if (playerData.isPremium) {
+            totalReward = (totalReward * 120) / 100;
         }
 
-        emit QuizCompleted(player, score, reward);
+        playerData.score += totalReward / 1e18;
+
+        if (totalReward > 0) {
+            IERC20(guiToken).transfer(player, totalReward);
+        }
+
+        if (nftAchievements != address(0)) {
+            INFTAchievements(nftAchievements).checkAndMintAchievements(
+                player,
+                playerData.totalPredictions,
+                playerData.correctPredictions,
+                playerData.currentStreak,
+                playerData.quizCount
+            );
+        }
+
+        emit QuizCompleted(player, quizId, score, totalReward);
     }
 
     function _stakeTokens(address player, uint256 amount) internal {
         require(amount > 0, "Invalid stake amount");
-
         players[player].stakedAmount += amount;
-
-        emit TokensStaked(player, amount);
     }
 
-    function _claimRewards(
+    function _activatePremium(
         address player,
-        address zrc20,
-        uint256 targetChainId
+        uint256 duration,
+        uint256 amount
     ) internal {
+        require(amount >= 100 * 1e18, "Insufficient payment for premium");
+        players[player].isPremium = true;
+
+        emit PremiumActivated(player, duration);
+    }
+
+    function _completeQuest(address player, uint256 questId) internal {
+        require(dailyQuests[questId].active, "Quest not active");
+        require(!completedQuests[player][questId], "Quest already completed");
+        require(
+            block.timestamp <= dailyQuests[questId].deadline,
+            "Quest expired"
+        );
+
+        DailyQuest storage quest = dailyQuests[questId];
         Player storage playerData = players[player];
-        uint256 rewards = calculatePendingRewards(player);
 
-        require(rewards > 0, "No rewards to claim");
+        bool questCompleted = false;
 
-        // Reset pending rewards
-        playerData.score = 0;
-
-        // Cross-chain reward distribution
-        if (targetChainId != 0) {
-            bytes memory message = abi.encode(player, rewards);
-            gateway.call(
-                abi.encodePacked(player),
-                zrc20,
-                message,
-                CallOptions(50000, false) // gasLimit, isArbitraryCall
-            );
-        } else {
-            // Local reward
-            IERC20(guiToken).transfer(player, rewards);
+        if (
+            keccak256(bytes(quest.questType)) == keccak256(bytes("prediction"))
+        ) {
+            questCompleted = playerData.totalPredictions >= quest.targetValue;
+        } else if (
+            keccak256(bytes(quest.questType)) == keccak256(bytes("quiz"))
+        ) {
+            questCompleted = playerData.quizCount >= quest.targetValue;
+        } else if (
+            keccak256(bytes(quest.questType)) == keccak256(bytes("accuracy"))
+        ) {
+            uint256 accuracy = playerData.totalPredictions > 0
+                ? (playerData.correctPredictions * 100) /
+                    playerData.totalPredictions
+                : 0;
+            questCompleted = accuracy >= quest.targetValue;
+        } else if (
+            keccak256(bytes(quest.questType)) == keccak256(bytes("streak"))
+        ) {
+            questCompleted = playerData.currentStreak >= quest.targetValue;
         }
 
-        emit RewardDistributed(player, rewards, targetChainId);
+        require(questCompleted, "Quest requirements not met");
+
+        completedQuests[player][questId] = true;
+
+        IERC20(guiToken).transfer(player, quest.reward);
+        playerData.score += quest.reward / 1e18;
+
+        emit QuestCompleted(player, questId, quest.reward);
     }
 
     function resolvePrediction(
@@ -202,26 +353,62 @@ contract GameFiCore is UniversalContract, Ownable, ReentrancyGuard {
         prediction.actualPrice = actualPrice;
         prediction.resolved = true;
 
-        // Check if prediction is correct (within 5% range)
-        uint256 tolerance = (actualPrice * 5) / 100;
-        bool correct = prediction.predictedPrice >= actualPrice - tolerance &&
-            prediction.predictedPrice <= actualPrice + tolerance;
+        Player storage playerData = players[prediction.player];
+
+        uint256 accuracy = calculateAccuracy(
+            prediction.predictedPrice,
+            actualPrice
+        );
+        bool correct = accuracy >= 95;
 
         prediction.correct = correct;
 
         if (correct) {
-            players[prediction.player].correctPredictions++;
-            players[prediction.player].score += 10; // Base score for correct prediction
+            playerData.correctPredictions++;
+            playerData.currentStreak++;
 
-            // Bonus for accuracy
-            uint256 accuracy = calculateAccuracy(
-                prediction.predictedPrice,
-                actualPrice
-            );
-            players[prediction.player].score += accuracy;
+            if (playerData.currentStreak > playerData.bestStreak) {
+                playerData.bestStreak = playerData.currentStreak;
+                emit StreakAchieved(
+                    prediction.player,
+                    playerData.currentStreak
+                );
+            }
+
+            uint256 baseReward = BASE_PREDICTION_REWARD;
+            uint256 accuracyBonus = (accuracy * baseReward) / 100;
+            uint256 confidenceBonus = (prediction.confidence * baseReward) /
+                200;
+            uint256 streakBonus = playerData.currentStreak > 5
+                ? (playerData.currentStreak * baseReward) / 20
+                : 0;
+
+            uint256 totalReward = baseReward +
+                accuracyBonus +
+                confidenceBonus +
+                streakBonus;
+
+            if (playerData.isPremium) {
+                totalReward = (totalReward * 130) / 100;
+            }
+
+            playerData.score += totalReward / 1e18;
+            IERC20(guiToken).transfer(prediction.player, totalReward);
+        } else {
+            playerData.currentStreak = 0;
         }
 
-        emit PredictionResolved(predictionId, actualPrice, correct);
+        if (nftAchievements != address(0)) {
+            INFTAchievements(nftAchievements).checkAndMintAchievements(
+                prediction.player,
+                playerData.totalPredictions,
+                playerData.correctPredictions,
+                playerData.currentStreak,
+                playerData.quizCount
+            );
+        }
+
+        emit PredictionResolved(predictionId, actualPrice, correct, accuracy);
     }
 
     function calculateAccuracy(
@@ -233,18 +420,35 @@ contract GameFiCore is UniversalContract, Ownable, ReentrancyGuard {
             : actual - predicted;
         uint256 percentage = (diff * 100) / actual;
 
-        if (percentage <= 1) return 10; // Perfect prediction
-        if (percentage <= 2) return 7;
-        if (percentage <= 3) return 5;
-        if (percentage <= 5) return 2;
-        return 0;
+        if (percentage == 0) return 100;
+        if (percentage <= 1) return 99;
+        if (percentage <= 2) return 97;
+        if (percentage <= 3) return 95;
+        if (percentage <= 5) return 90;
+        if (percentage <= 10) return 80;
+        return percentage > 50 ? 0 : 100 - (percentage * 2);
     }
 
-    function calculatePendingRewards(
-        address player
-    ) public view returns (uint256) {
-        Player memory playerData = players[player];
-        return playerData.score * 1e18; // Convert score to token amount
+    function _initializeDailyQuests() internal {
+        dailyQuests[nextQuestId++] = DailyQuest({
+            title: "First Prediction",
+            description: "Make your first price prediction today",
+            questType: "prediction",
+            targetValue: 1,
+            reward: 50 * 1e18,
+            deadline: block.timestamp + 1 days,
+            active: true
+        });
+
+        dailyQuests[nextQuestId++] = DailyQuest({
+            title: "Quiz Master",
+            description: "Complete 3 quizzes today",
+            questType: "quiz",
+            targetValue: 3,
+            reward: 100 * 1e18,
+            deadline: block.timestamp + 1 days,
+            active: true
+        });
     }
 
     function getPlayerStats(
@@ -257,7 +461,11 @@ contract GameFiCore is UniversalContract, Ownable, ReentrancyGuard {
             uint256 totalPredictions,
             uint256 correctPredictions,
             uint256 stakedAmount,
-            uint256 accuracy
+            uint256 accuracy,
+            uint256 currentStreak,
+            uint256 bestStreak,
+            uint256 quizCount,
+            bool isPremium
         )
     {
         Player memory playerData = players[player];
@@ -271,14 +479,40 @@ contract GameFiCore is UniversalContract, Ownable, ReentrancyGuard {
             playerData.totalPredictions,
             playerData.correctPredictions,
             playerData.stakedAmount,
-            accuracy
+            accuracy,
+            playerData.currentStreak,
+            playerData.bestStreak,
+            playerData.quizCount,
+            playerData.isPremium
         );
     }
 
-    function getPlayerPredictions(
+    function getPlayerQuizzes(
         address player
     ) external view returns (uint256[] memory) {
-        return playerPredictions[player];
+        return playerQuizzes[player];
+    }
+
+    function getDailyQuests() external view returns (DailyQuest[] memory) {
+        DailyQuest[] memory activeQuests = new DailyQuest[](nextQuestId);
+        uint256 count = 0;
+
+        for (uint256 i = 0; i < nextQuestId; i++) {
+            if (
+                dailyQuests[i].active &&
+                block.timestamp <= dailyQuests[i].deadline
+            ) {
+                activeQuests[count] = dailyQuests[i];
+                count++;
+            }
+        }
+
+        DailyQuest[] memory result = new DailyQuest[](count);
+        for (uint256 i = 0; i < count; i++) {
+            result[i] = activeQuests[i];
+        }
+
+        return result;
     }
 
     modifier onlyGateway() {

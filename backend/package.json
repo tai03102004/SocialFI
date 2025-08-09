@@ -2,37 +2,44 @@
   "name": "gamefi-backend",
   "version": "1.0.0",
   "description": "GameFi Backend with AI Integration",
-  "main": "dist/index.js",
+  "main": "dist/index.ts",
   "type": "module",
   "scripts": {
-    "dev": "nodemon --exec ts-node src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "start:dev": "ts-node src/index.ts",
+    "start:dev": "tsx src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
     "postbuild": "echo \"Build completed successfully\""
   },
-  "keywords": ["gamefi", "blockchain", "ai", "zetachain"],
+  "keywords": [
+    "gamefi",
+    "blockchain",
+    "ai",
+    "zetachain"
+  ],
   "author": "GameFi Team",
   "license": "MIT",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@types/express": "^4.17.23",
     "axios": "^1.11.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
-    "express": "^5.1.0",
+    "express": "^4.21.2",
     "helmet": "^8.1.0",
     "morgan": "^1.10.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.3",
-    "@types/morgan": "^1.9.9",
-    "@types/node": "^24.1.0",
+    "@types/helmet": "^0.0.48",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^24.2.0",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.3",
     "typescript": "^5.9.2"
   }
 }

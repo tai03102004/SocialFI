@@ -64,7 +64,8 @@ app.get("/api/ai/quiz/:difficulty?", async (req, res) => {
   try {
     const difficulty =
       (req.params.difficulty as "easy" | "medium" | "hard") || "medium";
-    const quiz = await geminiService.generateQuiz(difficulty);
+    const category = (req.query.category as string) || "general";
+    const quiz = await geminiService.generateQuiz(difficulty, category);
     res.json(quiz);
   } catch (error) {
     console.error("Quiz generation error:", error);
@@ -105,6 +106,30 @@ app.get("/api/market-data", async (req, res) => {
   }
 });
 
+// Historical data endpoint
+app.get("/api/price/:symbol/history", async (req, res) => {
+  try {
+    const symbol = req.params.symbol.toLowerCase();
+    const days = parseInt(req.query.days as string) || 30;
+    const history = await marketService.getHistoricalData(symbol, days);
+    res.json(history);
+  } catch (error) {
+    console.error("Historical data error:", error);
+    res.status(500).json({ error: "Failed to fetch historical data" });
+  }
+});
+
+// Trending coins endpoint
+app.get("/api/trending", async (req, res) => {
+  try {
+    const trending = await marketService.getTrendingCoins();
+    res.json(trending);
+  } catch (error) {
+    console.error("Trending coins error:", error);
+    res.status(500).json({ error: "Failed to fetch trending coins" });
+  }
+});
+
 // Trading strategy endpoint
 app.post("/api/ai/strategy", async (req, res) => {
   try {
@@ -114,6 +139,44 @@ app.post("/api/ai/strategy", async (req, res) => {
   } catch (error) {
     console.error("Strategy generation error:", error);
     res.status(500).json({ error: "Failed to generate strategy" });
+  }
+});
+
+// Social content suggestion endpoint
+app.post("/api/ai/social-content", async (req, res) => {
+  try {
+    const { topic, userProfile } = req.body;
+    const suggestion = await geminiService.generateSocialContent(
+      topic,
+      userProfile
+    );
+    res.json(suggestion);
+  } catch (error) {
+    console.error("Social content error:", error);
+    res.status(500).json({ error: "Failed to generate content" });
+  }
+});
+
+// User performance analysis endpoint
+app.post("/api/ai/analyze-performance", async (req, res) => {
+  try {
+    const { playerStats } = req.body;
+    const analysis = await geminiService.analyzeUserPerformance(playerStats);
+    res.json(analysis);
+  } catch (error) {
+    console.error("Performance analysis error:", error);
+    res.status(500).json({ error: "Failed to analyze performance" });
+  }
+});
+
+// News digest endpoint
+app.get("/api/ai/news-digest", async (req, res) => {
+  try {
+    const digest = await geminiService.generateNewsDigest();
+    res.json(digest);
+  } catch (error) {
+    console.error("News digest error:", error);
+    res.status(500).json({ error: "Failed to generate news digest" });
   }
 });
 
