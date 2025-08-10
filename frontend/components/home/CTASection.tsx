@@ -34,12 +34,12 @@ export function CTASection() {
               and begin earning rewards in the most innovative GameFi platform.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <div className="flex-col sm:flex-row gap-4 justify-center items-center flex">
               <Link href="/gamefi">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="btn-primary text-lg px-8 py-4 min-w-[200px]"
+                  className="btn-primary text-lg px-8 py-4 min-w-[200px] flex"
                 >
                   <RocketLaunchIcon className="h-6 w-6 mr-2" />
                   Get Started

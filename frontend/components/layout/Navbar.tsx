@@ -8,7 +8,7 @@ import {
   UserCircleIcon,
   ChevronDownIcon,
   Cog6ToothIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightStartOnRectangleIcon
 } from '@heroicons/react/24/outline'
 import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { useAccount, useDisconnect } from 'wagmi'
@@ -22,12 +22,11 @@ export function Navbar() {
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
   const [isOpen, setIsOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const bellRef = useRef(null)
 
   useEffect(() => {
     function handleClickOutside(event) {
-      console.log("EVENT" , event)
-      console.log("BELL", bellRef)
       if (bellRef.current && !bellRef.current.contains(event.target)) {
         setIsOpen(false)
       }
@@ -37,12 +36,17 @@ export function Navbar() {
       document.removeEventListener('click', handleClickOutside)
     }
   }, [])
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     // Implement search functionality
     console.log('Searching for:', searchQuery)
   }
+
+
 
   return (
     <nav className="bg-dark-800/80 backdrop-blur-md border-b border-dark-700 sticky top-0 z-40">
@@ -78,7 +82,7 @@ export function Navbar() {
                 <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
               </motion.button>
 
-              {isOpen && (
+              {mounted && isOpen && (
                 <ActivityFeed/>
               )}
             </div>
@@ -93,68 +97,70 @@ export function Navbar() {
               >
                 Connect Wallet
               </motion.button>
-            ) : (
-              <Menu as="div" className="relative">
-                <Menu.Button className="flex items-center space-x-2 p-2 text-gray-400 hover:text-white transition-colors duration-200">
-                  <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-semibold text-white">
-                      {address?.slice(2, 4).toUpperCase()}
+            ) : 
+              mounted && (
+                <Menu as="div" className="relative">
+                  <Menu.Button className="flex items-center space-x-2 p-2 text-gray-400 hover:text-white transition-colors duration-200">
+                    <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-semibold text-white">
+                        {address?.slice(2, 4).toUpperCase()}
+                      </span>
+                    </div>
+                    <span className="hidden md:block text-sm font-medium text-white">
+                      {address?.slice(0, 6)}...{address?.slice(-4)}
                     </span>
-                  </div>
-                  <span className="hidden md:block text-sm font-medium text-white">
-                    {address?.slice(0, 6)}...{address?.slice(-4)}
-                  </span>
-                  <ChevronDownIcon className="h-4 w-4" />
-                </Menu.Button>
+                    <ChevronDownIcon className="h-4 w-4" />
+                  </Menu.Button>
 
-                <Transition
-                  as={Fragment}
-                  enter="transition ease-out duration-100"
-                  enterFrom="transform opacity-0 scale-95"
-                  enterTo="transform opacity-100 scale-100"
-                  leave="transition ease-in duration-75"
-                  leaveFrom="transform opacity-100 scale-100"
-                  leaveTo="transform opacity-0 scale-95"
-                >
-                  <Menu.Items className="absolute right-0 mt-2 w-48 bg-dark-800 border border-dark-600 rounded-lg shadow-xl py-2">
-                    <Menu.Item>
-                      {({ active }) => (
-                        <a
-                          href="/profile"
-                          className={`${active ? 'bg-dark-700' : ''} flex items-center px-4 py-2 text-sm text-white`}
-                        >
-                          <UserCircleIcon className="h-5 w-5 mr-2" />
-                          Profile
-                        </a>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <a
-                          href="/settings"
-                          className={`${active ? 'bg-dark-700' : ''} flex items-center px-4 py-2 text-sm text-white`}
-                        >
-                          <Cog6ToothIcon className="h-5 w-5 mr-2" />
-                          Settings
-                        </a>
-                      )}
-                    </Menu.Item>
-                    <div className="border-t border-dark-600 my-2"></div>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <button
-                          onClick={() => disconnect()}
-                          className={`${active ? 'bg-dark-700' : ''} flex items-center w-full px-4 py-2 text-sm text-white`}
-                        >
-                          <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
-                          Disconnect
-                        </button>
-                      )}
-                    </Menu.Item>
-                  </Menu.Items>
-                </Transition>
-              </Menu>
-            )}
+                  <Transition
+                    as={Fragment}
+                    enter="transition ease-out duration-100"
+                    enterFrom="transform opacity-0 scale-95"
+                    enterTo="transform opacity-100 scale-100"
+                    leave="transition ease-in duration-75"
+                    leaveFrom="transform opacity-100 scale-100"
+                    leaveTo="transform opacity-0 scale-95"
+                  >
+                    <Menu.Items className="absolute right-0 mt-2 w-48 bg-dark-800 border border-dark-600 rounded-lg shadow-xl py-2">
+                      <Menu.Item>
+                        {({ active }) => (
+                          <a
+                            href="/profile"
+                            className={`${active ? 'bg-dark-700' : ''} flex items-center px-4 py-2 text-sm text-white`}
+                          >
+                            <UserCircleIcon className="h-5 w-5 mr-2" />
+                            Profile
+                          </a>
+                        )}
+                      </Menu.Item>
+                      <Menu.Item>
+                        {({ active }) => (
+                          <a
+                            href="/settings"
+                            className={`${active ? 'bg-dark-700' : ''} flex items-center px-4 py-2 text-sm text-white`}
+                          >
+                            <Cog6ToothIcon className="h-5 w-5 mr-2" />
+                            Settings
+                          </a>
+                        )}
+                      </Menu.Item>
+                      <div className="border-t border-dark-600 my-2"></div>
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            onClick={() => disconnect()}
+                            className={`${active ? 'bg-dark-700' : ''} flex items-center w-full px-4 py-2 text-sm text-white`}
+                          >
+                            <ArrowRightStartOnRectangleIcon className="h-5 w-5 mr-2" />
+                            Disconnect
+                          </button>
+                        )}
+                      </Menu.Item>
+                    </Menu.Items>
+                  </Transition>
+                </Menu>
+                )
+              }
           </div>
         </div>
       </div>

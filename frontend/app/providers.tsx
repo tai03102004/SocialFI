@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiConfig } from 'wagmi'
 import { mainnet, sepolia, bsc, bscTestnet } from 'wagmi/chains'
 import { createWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 // 1. Get projectId
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || ''
@@ -20,8 +20,7 @@ const metadata = {
 const chains = [mainnet, sepolia, bsc, bscTestnet] as const
 const wagmiConfig = defaultWagmiConfig({ chains, projectId, metadata })
 
-// 3. Create modal
-createWeb3Modal({ wagmiConfig, projectId })
+// createWeb3Modal({ wagmiConfig, projectId })
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -33,6 +32,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
       },
     },
   }))
+
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    createWeb3Modal({ wagmiConfig, projectId })
+    setMounted(true)
+  }, [])
+
+  if (!mounted) return null 
 
   return (
     <WagmiConfig config={wagmiConfig}>
