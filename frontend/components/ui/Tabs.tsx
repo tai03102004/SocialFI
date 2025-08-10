@@ -12,11 +12,12 @@ interface TabsProps {
   tabs: Tab[]
   activeTab: string
   onTabChange: (tabId: string) => void
+  className?: string
 }
 
-export function Tabs({ tabs, activeTab, onTabChange }: TabsProps) {
+export function Tabs({ tabs, activeTab, onTabChange, className = '' }: TabsProps) {
   return (
-    <div className="bg-dark-800/50 backdrop-blur-sm border border-dark-600 rounded-xl p-2">
+    <div className={`bg-dark-800/50 backdrop-blur-sm border border-dark-600 rounded-xl p-2 ${className}`}>
       <div className="flex space-x-1">
         {tabs.map((tab) => (
           <motion.button

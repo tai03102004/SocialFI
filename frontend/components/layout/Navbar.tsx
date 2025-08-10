@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { 
   MagnifyingGlassIcon, 
@@ -14,12 +14,29 @@ import { useWeb3Modal } from '@web3modal/wagmi/react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { Menu, Transition } from '@headlessui/react'
 import { Fragment } from 'react'
+import { ActivityFeed } from '../social/ActivityFeed'
 
 export function Navbar() {
   const [searchQuery, setSearchQuery] = useState('')
   const { open } = useWeb3Modal()
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
+  const [isOpen, setIsOpen] = useState(false)
+  const bellRef = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      console.log("EVENT" , event)
+      console.log("BELL", bellRef)
+      if (bellRef.current && !bellRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => {
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,14 +67,21 @@ export function Navbar() {
           {/* Right side */}
           <div className="flex items-center space-x-4">
             {/* Notifications */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="relative p-2 text-gray-400 hover:text-white transition-colors duration-200"
-            >
-              <BellIcon className="h-6 w-6" />
-              <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
-            </motion.button>
+            <div ref={bellRef} className="relative">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative p-2 text-gray-400 hover:text-white transition-colors duration-200"
+                onClick={() => setIsOpen( (prev) => !prev)}
+              >
+                <BellIcon className="h-6 w-6" />
+                <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+              </motion.button>
+
+              {isOpen && (
+                <ActivityFeed/>
+              )}
+            </div>
 
             {/* Wallet Connection */}
             {!isConnected ? (

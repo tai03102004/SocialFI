@@ -29,7 +29,7 @@ const mockPosts = [
     username: 'GameFiMaster',
     avatar: '/api/placeholder/40/40',
     content: 'New NFT achievement unlocked! "Oracle" badge for 80% prediction accuracy 🏆',
-    image: '/api/placeholder/500/300',
+    image: '/images/MVB.jpeg',
     timestamp: '4 hours ago',
     likes: 56,
     comments: 15,

@@ -8,7 +8,6 @@ import {
   HomeIcon,
   UserGroupIcon,
   TrophyIcon,
-  ChatBubbleLeftRightIcon,
   ChartBarIcon,
   AcademicCapIcon,
   CurrencyDollarIcon,
@@ -16,6 +15,7 @@ import {
   RocketLaunchIcon,
   Bars3Icon,
   XMarkIcon,
+  BuildingStorefrontIcon,
 } from '@heroicons/react/24/outline'
 
 const navigation = [
@@ -27,7 +27,7 @@ const navigation = [
   { name: 'Achievements', href: '/achievements', icon: TrophyIcon },
   { name: 'AI Assistant', href: '/ai', icon: SparklesIcon },
   { name: 'Trading', href: '/trading', icon: CurrencyDollarIcon },
-  { name: 'Chat', href: '/chat', icon: ChatBubbleLeftRightIcon },
+  { name: 'NFT Markets', href: '/nft', icon: BuildingStorefrontIcon },
 ]
 
 export function Sidebar() {

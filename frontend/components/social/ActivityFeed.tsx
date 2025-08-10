@@ -65,11 +65,11 @@ export function ActivityFeed({ limit = 10 }: ActivityFeedProps) {
   const displayActivities = activities.slice(0, limit)
 
   return (
-    <div className="bg-dark-800/50 backdrop-blur-sm border border-dark-600 rounded-xl p-6">
+    <div className="bg-dark-800/50 backdrop-blur-sm border border-dark-600 rounded-xl p-6 absolute top-6 max-h-[400px] overflow-y-auto">
       <h3 className="text-lg font-semibold text-white mb-6">Recent Activity</h3>
       
       <div className="space-y-4">
-        {displayActivities.map((activity, index) => (
+        {displayActivities.slice(0,3).map((activity, index) => (
           <motion.div
             key={activity.id}
             initial={{ opacity: 0, x: -20 }}
@@ -85,7 +85,7 @@ export function ActivityFeed({ limit = 10 }: ActivityFeedProps) {
               <p className="text-sm text-white">
                 <span className="font-medium text-primary-400">{activity.user}</span>
                 {' '}
-                <span className="text-gray-300">{activity.action}</span>
+                {/* <span className="text-gray-300">{activity.action}</span> */}
               </p>
               <p className="text-xs text-gray-400 mt-1">{activity.timestamp}</p>
             </div>

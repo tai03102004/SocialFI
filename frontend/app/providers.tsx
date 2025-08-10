@@ -1,7 +1,7 @@
 'use client'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { WagmiConfig, createConfig } from 'wagmi'
+import { WagmiConfig } from 'wagmi'
 import { mainnet, sepolia, bsc, bscTestnet } from 'wagmi/chains'
 import { createWeb3Modal, defaultWagmiConfig } from '@web3modal/wagmi/react'
 import { useState } from 'react'
