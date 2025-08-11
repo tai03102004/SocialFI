@@ -12,8 +12,12 @@ contract GUIToken is ERC20, Ownable {
     event MinterAdded(address indexed minter);
     event MinterRemoved(address indexed minter);
 
-    constructor() ERC20("GameFi Universal Interface", "GUI") {
+    constructor()
+        ERC20("GameFi Universal Interface", "GUI")
+        Ownable(msg.sender)
+    {
         // Mint initial supply to owner
+
         _mint(msg.sender, 100000000 * 1e18); // 100 million initial supply
     }
 
