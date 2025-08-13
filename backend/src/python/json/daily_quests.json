@@ -1,0 +1,17 @@
+{
+  "quest_id": "QP20250812-001",
+  "quest_type": "Price Prediction",
+  "title": "Bitcoin Price Prediction Challenge",
+  "description": "Predict whether Bitcoin (BTC) will close above or below $120,000 at 23:59 UTC on 2025-08-12.",
+  "completion_criteria": {
+    "target_price": 120000,
+    "prediction_type": "above_or_below",
+    "closing_time": "2025-08-12T23:59:00Z"
+  },
+  "time_limit": 86400,
+  "rewards": {
+    "tokens": 50,
+    "xp": 100
+  },
+  "difficulty": 5
+}

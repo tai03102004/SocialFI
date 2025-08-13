@@ -1,0 +1,180 @@
+quest_generation:
+  description: >
+    Generate daily quests and price prediction challenges based on current blockchain market data 
+    and player history for date {current_date}.
+
+    Process:
+    1. Use `SerperDevTool` to search for trending blockchain/crypto news and market movements in the last 24 hours.
+    2. Analyze player's historical performance, preferred tokens, and difficulty level.
+    3. Generate 3-5 diverse quests including:
+       - Price prediction challenges for major cryptocurrencies
+       - Social engagement tasks (Twitter/Discord interactions)
+       - Educational quizzes about blockchain technology
+       - Trading simulation challenges
+    4. Set appropriate difficulty levels and reward tiers based on player profile.
+
+    Constraints:
+    - Quests must be completable within 24 hours
+    - Difficulty should match player's skill level (beginner/intermediate/advanced)
+    - Rewards must align with the game's tokenomics
+    - Include at least one social interaction quest
+
+  expected_output: >
+    A JSON structure containing:
+    - Quest ID and type
+    - Title and description in English
+    - Completion criteria and time limits  
+    - Reward structure (tokens, XP, NFTs)
+    - Difficulty rating (1-10)
+
+  agent: quest_agent
+
+news_collection:
+  description: >
+    Collect and summarize the top 3 most impactful blockchain and cryptocurrency news 
+    within the last 7 days as of {current_date}.
+
+    Process:
+    1. Use `SerperDevTool` to find articles related to blockchain technology, DeFi, NFTs, 
+       major cryptocurrency movements, regulatory updates, and Web3 developments.
+    2. Select 3 most relevant articles based on impact potential, credibility, and relevance 
+       to the crypto gaming/SocialFi ecosystem.
+    3. Use `ScrapeWebsiteTool` to collect detailed content from selected articles.
+    4. Summarize each article in 3-5 sentences, focusing on implications for the crypto market 
+       and blockchain gaming sector.
+
+    Constraints:
+    - Only articles published within the last 7 days
+    - Prioritize news from reputable sources (CoinDesk, Cointelegraph, The Block, etc.)
+    - Focus on news that impacts DeFi, GameFi, or SocialFi ecosystems
+    - Must use actual data from the scraping tools, no generated content
+
+  expected_output: >
+    A markdown list with 3 items, each containing:
+    - **Article title** (bold)
+    - Publication date
+    - Source with URL link
+    - 3-5 sentence summary in English highlighting market impact and relevance to Web3 gaming
+
+  agent: news_agent
+
+social_sentiment_analysis:
+  description: >
+    Analyze social media sentiment (Twitter, Reddit) for cryptocurrency {symbol} and 
+    overall Web3/blockchain gaming market sentiment for {current_date}.
+
+    Process:
+    1. Use `SerperDevTool` to collect recent social media posts and discussions about 
+       the specified cryptocurrency and blockchain gaming trends.
+    2. Analyze sentiment using natural language processing techniques.
+    3. Identify key influencers, trending topics, and community concerns.
+    4. Assess market psychology and potential price movement indicators.
+    5. Generate insights relevant to SocialFi and GameFi sectors.
+
+    Focus areas:
+    - Overall market sentiment (bullish/bearish/neutral)
+    - Community engagement levels
+    - Influencer opinions and their potential impact
+    - Emerging trends in blockchain gaming and SocialFi
+
+  expected_output: >
+    A comprehensive report in English (2-3 paragraphs) including:
+    - Current sentiment score (1-10, where 10 is extremely bullish)
+    - Key themes and discussions in the community
+    - Influencer sentiment and notable opinions
+    - Implications for players and investment strategies
+    - Trending hashtags and social metrics
+
+  agent: social_agent
+
+strategy_recommendation:
+  description: >
+    Analyze market data for {symbol} and provide strategic recommendations for 
+    players in the SocialFi ecosystem on {current_date}.
+
+    Process:
+    1. Use `fund_tool` and `tech_tool` to gather fundamental and technical analysis data.
+    2. Integrate social sentiment analysis and recent news impact.
+    3. Apply machine learning models to identify patterns and trends.
+    4. Generate personalized strategy recommendations based on:
+       - Risk tolerance levels
+       - Investment timeframe
+       - Gaming objectives vs investment goals
+       - Current portfolio composition
+
+    Analysis components:
+    - Technical indicators (RSI, MACD, support/resistance levels)
+    - Market fundamentals and tokenomics
+    - Social sentiment integration
+    - Risk assessment and portfolio optimization
+
+  expected_output: >
+    A strategic report in English containing:
+    - **Market Overview**: Current trend analysis (bullish/bearish/sideways)
+    - **Entry/Exit Strategy**: Specific price targets and timing recommendations
+    - **Risk Management**: Stop-loss levels and position sizing advice
+    - **Social Strategy**: How to leverage social features for maximum rewards
+    - **Timeframe**: Short-term (1-7 days) vs long-term (1-3 months) outlook
+    - **Confidence Score**: Strategy reliability rating (1-10)
+
+  agent: strategy_agent
+
+nft_reward_management:
+  description: >
+    Manage NFT minting and distribution for players who achieve specific milestones 
+    or complete challenging quests on {current_date}.
+
+    Process:
+    1. Monitor player achievements and milestone completions.
+    2. Verify eligibility criteria for NFT rewards.
+    3. Generate unique NFT metadata based on achievement type and rarity.
+    4. Initiate minting process through smart contract integration.
+    5. Distribute NFTs to eligible player wallets.
+    6. Update player profiles with new NFT ownership.
+
+    Reward categories:
+    - Quest completion NFTs (common to legendary rarity)
+    - Achievement milestone NFTs
+    - Social engagement rewards
+    - Trading performance NFTs
+    - Community contribution badges
+
+  expected_output: >
+    A JSON report containing:
+    - List of eligible players and their achievements
+    - NFT metadata for each reward (name, description, attributes, rarity)
+    - Minting transaction details and status
+    - Distribution confirmations
+    - Updated player statistics and rankings
+
+  agent: nft_reward_agent
+
+chatbot_response_generation:
+  description: >
+    Generate intelligent responses for the AI chatbot to help players with questions 
+    about strategy, market analysis, gameplay mechanics, and platform features.
+
+    Common query categories:
+    1. **Strategy Questions**: "What's the best prediction strategy?", "How should I allocate my portfolio?"
+    2. **Market Analysis**: "What's happening in the crypto market?", "Should I buy or sell now?"
+    3. **Gameplay Help**: "How do I earn more XP?", "What are the quest requirements?"
+    4. **Social Features**: "How do I create viral posts?", "What's the best time to engage?"
+    5. **Technical Support**: "How do I connect my wallet?", "Why isn't my NFT showing?"
+
+    Response guidelines:
+    - Use natural, friendly language suitable for crypto gaming community
+    - Provide actionable advice with specific examples
+    - Include relevant data and market context when available
+    - Encourage social interaction and community engagement
+    - Always prioritize user safety and responsible investing
+
+  expected_output: >
+    A comprehensive response in English that:
+    - Directly addresses the user's question
+    - Provides practical, actionable advice
+    - References current market data when relevant
+    - Suggests related features or quests the player might enjoy
+    - Maintains an encouraging, gamified tone
+    - Includes appropriate disclaimers for financial advice
+
+  agent: chatbot_ai
