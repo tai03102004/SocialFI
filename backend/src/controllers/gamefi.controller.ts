@@ -13,7 +13,7 @@ export class GameFiController {
         return res.status(400).json({ error: "Address is required" });
       }
 
-      const playerData = await contractService.getPlayerData(address);
+      const playerData = await contractService.getPlayerStats(address);
 
       res.json({
         success: true,
