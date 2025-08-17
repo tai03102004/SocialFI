@@ -25,3 +25,4 @@ coverage/
 
 # Python configs
 python/config/*.json
+backend/src/python/config/vertex-ai-key.json
