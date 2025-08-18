@@ -1,0 +1,18 @@
+{
+  "network": "zeta-testnet",
+  "deployer": "0x3b188255700eb8fcf4bc8F604441AB3bb4a30163",
+  "timestamp": "2025-08-18T03:56:32.844Z",
+  "contracts": {
+    "GUIToken": "0x61385a29749dE1Ad27BC350db5bcb1Fc294090cb",
+    "Gateway": "0x6c533f7fe93fae114d0954697069df33c9b74fd7",
+    "NFTAchievements": "0x5291659E7f7ba53Ea3e1b50C910257193e03A300",
+    "GameFiCore": "0xCE84542E9514Aab9Aa2E1f86d76C66EceBd4933B"
+  },
+  "transactions": {
+    "GUIToken": "0x6746874c7b413fb032d720d65607713e8c7e969b5f42e49e981a814a747b56a8",
+    "NFTAchievements": "0x3e727c2b5679ef2b0602d046876fd130aee7e3a0c3e9cc98b867d3b95faea420",
+    "GameFiCore": "0xf3f6d8afb8265e845dead98956e10098caab4c27f33c1cd29440405beb0527bb"
+  },
+  "status": "partial",
+  "error": "incorrect number of arguments to constructor"
+}

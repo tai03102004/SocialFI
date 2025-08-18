@@ -9,10 +9,10 @@ declare global {
 // Contract addresses (sẽ được cập nhật sau khi deploy)
 export const CONTRACT_ADDRESSES = {
   ZETA_TESTNET: {
-    GUIToken: "0x...", // Sẽ được cập nhật
-    GameFiCore: "0x...", // Sẽ được cập nhật
-    SocialFiCore: "0x...", // Sẽ được cập nhật
-    NFTAchievements: "0x...", // Sẽ được cập nhật
+    GUIToken: "0x61385a29749dE1Ad27BC350db5bcb1Fc294090cb",
+    GameFiCore: "0xcB2D52Cf3eC99fC72f45fbb19BF5DEc1C5422839",
+    SocialFiCore: "0xd51Fd45521961ED907063e7e9E36F6B9b00f834c",
+    NFTAchievements: "0xBb892705CE7a6d1890Bb4A1e6f8Ea020557471A6",
     Gateway: "0x6c533f7fe93fae114d0954697069df33c9b74fd7",
   },
 };

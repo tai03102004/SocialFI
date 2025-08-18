@@ -1,7 +1,24 @@
 {
-  "articles": [
-    {}
+  "news_articles": [],
+  "market_intelligence": {
+    "on_chain_metrics": {
+      "active_addresses": "Data unavailable - Requires on-chain data analysis tools.",
+      "transaction_volume": "Data unavailable - Requires on-chain data analysis tools.",
+      "hodl_patterns": "Data unavailable - Requires on-chain data analysis tools.",
+      "whale_movements": "Data unavailable - Requires on-chain data analysis tools."
+    },
+    "exchange_flows": "Data unavailable - Requires exchange data analysis tools.",
+    "institutional_adoption": "Data unavailable - Requires institutional investment tracking tools.",
+    "corporate_treasury_updates": "Data unavailable - Requires corporate financial data analysis tools."
+  },
+  "regulatory_updates": [
+    "Data unavailable - Requires regulatory news aggregation and analysis."
   ],
-  "summary": "Overall market impact summary",
-  "date_collected": "2025-08-12"
+  "macro_factors": {
+    "dxy": "Data unavailable - Requires macroeconomic data feed.",
+    "interest_rates": "Data unavailable - Requires macroeconomic data feed.",
+    "inflation": "Data unavailable - Requires macroeconomic data feed."
+  },
+  "market_outlook": "Due to the lack of current data, a definitive market outlook cannot be provided. The market sentiment is uncertain. Further data analysis is required to assess short, medium, and long-term trends. Confidence indicators are currently unavailable.",
+  "analysis_date": "2025-08-17"
 }

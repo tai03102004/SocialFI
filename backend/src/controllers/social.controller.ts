@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { contractService } from "../services/contractService";
 import { User } from "../models/User";
 import { Post } from "../models/Post";
 

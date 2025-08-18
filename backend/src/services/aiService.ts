@@ -1,6 +1,9 @@
 import { spawn } from "child_process";
 import path from "path";
 import { promises as fs } from "fs";
+import { AIAnalysis } from "../models/AIAnalysis";
+import { DailyQuest } from "../models/DailyQuest";
+import { MarketNews } from "../models/MarketNews";
 
 interface AIInputs {
   symbol: string;
@@ -13,8 +16,8 @@ interface AIResults {
   blockchain_news?: any;
   sentiment_analysis?: any;
   strategy_recommendations?: any;
-  nft_rewards?: any;
-  chatbot_responses?: any;
+  technical_predictions?: any;
+  community_support?: any;
 }
 
 export class AIService {
@@ -47,6 +50,7 @@ export class AIService {
         if (code === 0) {
           try {
             const results = await this.parseAIOutput();
+            await this.saveAIResults(inputs.symbol, results);
             resolve(results);
           } catch (parseError) {
             reject(new Error(`Parse error: ${parseError}`));
@@ -61,139 +65,212 @@ export class AIService {
   private async parseAIOutput(): Promise<AIResults> {
     const outputDir = path.join(this.pythonPath, "json");
 
-    // Create directory if it doesn't exist
     try {
       await fs.mkdir(outputDir, { recursive: true });
     } catch (err) {
-      // Directory might already exist
+      // Directory exists
     }
 
-    const files = [
-      "daily_quests.json",
-      "blockchain_news.json",
-      "sentiment_analysis.json",
-      "strategy_recommendations.json",
-      "nft_rewards.json",
-      "chatbot_responses.json",
-    ];
+    const fileMap = {
+      daily_quests: "daily_quests.json",
+      blockchain_news: "blockchain_news.json",
+      sentiment_analysis: "sentiment_analysis.json",
+      strategy_recommendations: "strategy_recommendations.json",
+      technical_predictions: "technical_predictions.json",
+      community_support: "community_support.json",
+    };
 
     const results: AIResults = {};
 
-    for (const file of files) {
+    for (const [key, filename] of Object.entries(fileMap)) {
       try {
-        const filePath = path.join(outputDir, file);
+        const filePath = path.join(outputDir, filename);
         const content = await fs.readFile(filePath, "utf8");
-        const key = file.replace(".json", "") as keyof AIResults;
-        results[key] = JSON.parse(content);
+        results[key as keyof AIResults] = JSON.parse(content);
       } catch (err) {
-        console.warn(`Could not read ${file}:`, err);
-        // Set default values for missing files
-        const key = file.replace(".json", "") as keyof AIResults;
-        results[key] = this.getDefaultValue(key);
+        console.warn(`Could not read ${filename}:`, err);
+        results[key as keyof AIResults] = this.getDefaultValue(key);
       }
     }
 
     return results;
   }
 
-  private getDefaultValue(key: string) {
-    switch (key) {
-      case "daily_quests":
-        return {
-          quests: [
+  private async saveAIResults(symbol: string, results: AIResults) {
+    try {
+      const now = new Date();
+      const validUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+      // Save AI analyses in bulk
+      const analysisData = [
+        {
+          type: "technical",
+          data: results.technical_predictions,
+          confidence: results.technical_predictions?.confidence_score || 50,
+        },
+        {
+          type: "sentiment",
+          data: results.sentiment_analysis,
+          confidence: (results.sentiment_analysis?.sentiment_score || 5) * 10,
+        },
+        {
+          type: "strategy",
+          data: results.strategy_recommendations,
+          confidence: results.strategy_recommendations?.confidence_score || 50,
+        },
+        {
+          type: "community",
+          data: results.community_support,
+          confidence: 70,
+        },
+      ];
+
+      // Bulk upsert AI analyses
+      const analysisPromises = analysisData
+        .filter((item) => item.data)
+        .map((item) =>
+          AIAnalysis.findOneAndUpdate(
+            { symbol, analysisType: item.type },
             {
-              id: "default_quest_1",
-              title: "Daily Prediction Challenge",
-              description: "Make a price prediction for BTC",
-              type: "prediction",
-              reward: 100,
-              difficulty: 5,
+              symbol,
+              analysisType: item.type,
+              data: item.data,
+              confidence: item.confidence,
+              validUntil,
+              source: "crewai",
             },
-          ],
-        };
-      case "blockchain_news":
-        return {
-          news: [
-            {
-              title: "Market Update",
-              summary: "Stay tuned for the latest crypto news",
-              source: "Internal",
-              date: new Date().toISOString(),
+            { upsert: true, new: true }
+          )
+        );
+
+      await Promise.all(analysisPromises);
+
+      // Save blockchain news
+      if (results.blockchain_news) {
+        await MarketNews.findOneAndUpdate(
+          {
+            symbol,
+            analysisDate: {
+              $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
             },
-          ],
-        };
-      case "sentiment_analysis":
-        return {
-          sentiment_score: 5,
-          summary: "Neutral market sentiment",
-          confidence: 0.5,
-        };
-      case "strategy_recommendations":
-        return {
-          recommendation: "HOLD",
-          confidence_score: 5,
-          analysis: "Market analysis unavailable",
-        };
-      case "chatbot_responses":
-        return {
-          response:
-            "I'm here to help! What would you like to know about crypto trading?",
-        };
-      default:
-        return {};
+          },
+          {
+            symbol,
+            newsArticles: results.blockchain_news.news_articles || [],
+            marketIntelligence:
+              results.blockchain_news.market_intelligence || {},
+            regulatoryUpdates: results.blockchain_news.regulatory_updates || [],
+            macroFactors: results.blockchain_news.macro_factors || {},
+            marketOutlook: results.blockchain_news.market_outlook || "",
+            analysisDate: now,
+            validUntil,
+          },
+          { upsert: true, new: true }
+        );
+      }
+
+      // Save daily quest (only if new)
+      if (results.daily_quests) {
+        await this.saveDailyQuest(results.daily_quests, now);
+      }
+    } catch (error) {
+      console.error("Error saving AI results:", error);
     }
   }
 
-  async getTechnicalIndicators(
-    prices: number[],
-    indicator: string
-  ): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const python = spawn("python3", [
-        path.join(this.pythonPath, "technical_indicators.py"),
-        JSON.stringify(prices),
-        indicator,
+  private async saveDailyQuest(questData: any, now: Date) {
+    const questId = questData.quest_id || `QD-${Date.now()}`;
+
+    const existingQuest = await DailyQuest.findOne({
+      questId,
+      active: true,
+    });
+
+    if (!existingQuest) {
+      const expiresAt = new Date(
+        now.getTime() + (questData.time_limit || 24) * 60 * 60 * 1000
+      );
+
+      await DailyQuest.create({
+        questId,
+        questType: questData.quest_type || "prediction",
+        title: questData.title || "Daily Challenge",
+        description: questData.description || "Complete the daily challenge",
+        completionCriteria: questData.completion_criteria || {},
+        timeLimit: questData.time_limit || 24,
+        rewards: {
+          points: questData.rewards?.points || 100,
+          tokens: questData.rewards?.tokens,
+          nft: questData.rewards?.nft,
+        },
+        difficulty: questData.difficulty || 5,
+        expiresAt,
+        participants: [],
+      });
+    }
+  }
+
+  // Simplified getters
+  async getLatestAnalysis(symbol: string, type: string) {
+    return await AIAnalysis.findOne({
+      symbol: symbol.toUpperCase(),
+      analysisType: type,
+      validUntil: { $gt: new Date() },
+    }).sort({ createdAt: -1 });
+  }
+
+  async getActiveQuests() {
+    return await DailyQuest.find({
+      active: true,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 });
+  }
+
+  async getLatestNews(symbol: string) {
+    return await MarketNews.findOne({
+      symbol: symbol.toUpperCase(),
+      validUntil: { $gt: new Date() },
+    }).sort({ analysisDate: -1 });
+  }
+
+  async cleanupExpiredData() {
+    try {
+      const now = new Date();
+
+      await Promise.all([
+        AIAnalysis.deleteMany({ validUntil: { $lt: now } }),
+        MarketNews.deleteMany({ validUntil: { $lt: now } }),
+        DailyQuest.updateMany(
+          { expiresAt: { $lt: now }, active: true },
+          { active: false }
+        ),
       ]);
 
-      let output = "";
-      let error = "";
-
-      python.stdout.on("data", (data) => {
-        output += data.toString();
-      });
-
-      python.stderr.on("data", (data) => {
-        error += data.toString();
-      });
-
-      python.on("close", (code) => {
-        if (code === 0) {
-          try {
-            const result = JSON.parse(output);
-            resolve(result);
-          } catch (err) {
-            // Return default technical data if parsing fails
-            resolve(this.getDefaultTechnicalData(indicator));
-          }
-        } else {
-          console.error("Technical indicators error:", error);
-          resolve(this.getDefaultTechnicalData(indicator));
-        }
-      });
-    });
+      console.log("✅ Cleanup completed successfully");
+    } catch (error) {
+      console.error("❌ Error during cleanup:", error);
+    }
   }
 
-  private getDefaultTechnicalData(indicator: string) {
-    switch (indicator.toLowerCase()) {
-      case "rsi":
-        return { rsi: 50, signal: "neutral" };
-      case "macd":
-        return { macd: 0, signal_line: 0, histogram: 0, signal: "neutral" };
-      case "bollinger":
-        return { upper: 0, middle: 0, lower: 0, signal: "neutral" };
-      default:
-        return { value: 0, signal: "neutral" };
-    }
+  private getDefaultValue(key: string) {
+    const defaults = {
+      daily_quests: {
+        quest_id: `QD-${Date.now()}`,
+        quest_type: "prediction",
+        title: "Daily BTC Prediction",
+        description: "Predict BTC price movement",
+        time_limit: 24,
+        difficulty: 5,
+        rewards: { points: 100 },
+      },
+      sentiment_analysis: {
+        sentiment_score: 5,
+        key_themes: ["Market uncertainty"],
+        analysis_date: new Date().toISOString().split("T")[0],
+      },
+    };
+
+    return defaults[key as keyof typeof defaults] || {};
   }
 }
 

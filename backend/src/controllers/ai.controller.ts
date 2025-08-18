@@ -1,38 +1,123 @@
 import { Request, Response } from "express";
 import { aiService } from "../services/aiService";
+import { DailyQuest } from "../models/DailyQuest";
 
 export class AIController {
+  // Agent 1: Daily Quests
   async generateDailyQuests(req: Request, res: Response) {
     try {
+      const { force = false } = req.body;
+
+      if (!force) {
+        const activeQuests = await aiService.getActiveQuests();
+        if (activeQuests.length > 0) {
+          return res.json({
+            success: true,
+            data: activeQuests,
+            from_cache: true,
+          });
+        }
+      }
+
       const { symbol = "BTC", difficulty = "intermediate" } = req.body;
 
-      // Run CrewAI
       const aiResults = await aiService.runCrewAI({
         symbol,
         user_question: `Generate daily quests for ${difficulty} player`,
       });
 
-      // Extract quests data safely
-      const quests = aiResults.daily_quests || { quests: [] };
+      const quests = await aiService.getActiveQuests();
 
       res.json({
         success: true,
         data: quests,
         generated_at: new Date(),
+        from_cache: false,
       });
     } catch (error) {
       console.error("Generate quests error:", error);
       res.status(500).json({
         success: false,
         error: "Failed to generate quests",
-        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }
 
-  async getMarketAnalysis(req: Request, res: Response) {
+  async getActiveQuests(req: Request, res: Response) {
     try {
-      const { symbol } = req.params;
+      const activeQuests = await aiService.getActiveQuests();
+      res.json({
+        success: true,
+        data: activeQuests,
+      });
+    } catch (error) {
+      console.error("Get active quests error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get active quests",
+      });
+    }
+  }
+
+  async submitQuestResult(req: Request, res: Response) {
+    try {
+      const { questId } = req.params;
+      const { address, prediction } = req.body;
+
+      if (!address || !prediction) {
+        return res.status(400).json({
+          success: false,
+          error: "Address and prediction are required",
+        });
+      }
+
+      const quest = await DailyQuest.findOne({ questId, active: true });
+      if (!quest) {
+        return res.status(404).json({
+          success: false,
+          error: "Quest not found or expired",
+        });
+      }
+
+      // Check if user already participated
+      const existingParticipant = quest.participants.find(
+        (p) => p.address === address.toLowerCase()
+      );
+      if (existingParticipant) {
+        return res.status(400).json({
+          success: false,
+          error: "Already participated in this quest",
+        });
+      }
+
+      // Add participant
+      quest.participants.push({
+        address: address.toLowerCase(),
+        status: "pending",
+        submittedAt: new Date(),
+        prediction,
+      });
+
+      await quest.save();
+
+      res.json({
+        success: true,
+        message: "Quest submission recorded successfully",
+      });
+    } catch (error) {
+      console.error("Submit quest error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to submit quest result",
+      });
+    }
+  }
+
+  // Agent 2: Technical Analysis
+  async getTechnicalAnalysis(req: Request, res: Response) {
+    try {
+      const symbol = req.params.symbol || req.query.symbol;
+      const { force = false } = req.query;
 
       if (!symbol) {
         return res.status(400).json({
@@ -41,30 +126,197 @@ export class AIController {
         });
       }
 
-      const aiResults = await aiService.runCrewAI({
-        symbol: symbol.toUpperCase(),
-        user_question: `Provide market analysis for ${symbol}`,
+      if (!force) {
+        const analysis = await aiService.getLatestAnalysis(
+          symbol as string,
+          "technical"
+        );
+        if (analysis) {
+          return res.json({
+            success: true,
+            symbol,
+            data: analysis.data,
+            confidence: analysis.confidence,
+            timestamp: analysis.createdAt,
+            from_cache: true,
+          });
+        }
+      }
+
+      // Generate fresh technical analysis
+      await aiService.runCrewAI({
+        symbol: (symbol as string).toUpperCase(),
+        user_question: `Provide detailed technical analysis for ${symbol} including indicators, patterns, and price predictions`,
       });
+
+      const analysis = await aiService.getLatestAnalysis(
+        symbol as string,
+        "technical"
+      );
 
       res.json({
         success: true,
-        data: {
-          news: aiResults.blockchain_news || [],
-          sentiment: aiResults.sentiment_analysis || {},
-          strategy: aiResults.strategy_recommendations || {},
-        },
-        timestamp: new Date(),
+        symbol,
+        data: analysis?.data || {},
+        confidence: analysis?.confidence || 50,
+        timestamp: analysis?.createdAt || new Date(),
+        from_cache: false,
       });
     } catch (error) {
-      console.error("Market analysis error:", error);
+      console.error("Technical analysis error:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to get market analysis",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: "Failed to get technical analysis",
       });
     }
   }
 
+  // Agent 3: Sentiment Analysis
+  async getSentimentAnalysis(req: Request, res: Response) {
+    try {
+      const { symbol } = req.params;
+      const { force = false } = req.query;
+
+      if (!force) {
+        const sentiment = await aiService.getLatestAnalysis(
+          symbol,
+          "sentiment"
+        );
+        if (sentiment) {
+          return res.json({
+            success: true,
+            symbol,
+            data: sentiment.data,
+            confidence: sentiment.confidence,
+            timestamp: sentiment.createdAt,
+            from_cache: true,
+          });
+        }
+      }
+
+      await aiService.runCrewAI({
+        symbol: symbol.toUpperCase(),
+        user_question: `Analyze market sentiment for ${symbol} including social media trends, news sentiment, and community mood`,
+      });
+
+      const sentiment = await aiService.getLatestAnalysis(symbol, "sentiment");
+
+      res.json({
+        success: true,
+        symbol,
+        data: sentiment?.data || {},
+        confidence: sentiment?.confidence || 50,
+        timestamp: sentiment?.createdAt || new Date(),
+        from_cache: false,
+      });
+    } catch (error) {
+      console.error("Sentiment analysis error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get sentiment analysis",
+      });
+    }
+  }
+
+  // Agent 4: Strategy Recommendations
+  async getStrategyRecommendations(req: Request, res: Response) {
+    try {
+      const { symbol } = req.params;
+      const { force = false } = req.query;
+
+      if (!force) {
+        const strategy = await aiService.getLatestAnalysis(symbol, "strategy");
+        if (strategy) {
+          return res.json({
+            success: true,
+            symbol,
+            data: strategy.data,
+            confidence: strategy.confidence,
+            timestamp: strategy.createdAt,
+            from_cache: true,
+          });
+        }
+      }
+
+      await aiService.runCrewAI({
+        symbol: symbol.toUpperCase(),
+        user_question: `Provide comprehensive trading and investment strategies for ${symbol} including entry/exit points, risk management, and portfolio allocation`,
+      });
+
+      const strategy = await aiService.getLatestAnalysis(symbol, "strategy");
+
+      res.json({
+        success: true,
+        symbol,
+        data: strategy?.data || {},
+        confidence: strategy?.confidence || 50,
+        timestamp: strategy?.createdAt || new Date(),
+        from_cache: false,
+      });
+    } catch (error) {
+      console.error("Strategy recommendations error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get strategy recommendations",
+      });
+    }
+  }
+
+  // Agent 5: Blockchain News
+  async getBlockchainNews(req: Request, res: Response) {
+    try {
+      const symbol = req.params.symbol || req.query.symbol || "BTC";
+      const { force = false } = req.query;
+
+      if (!force) {
+        const news = await aiService.getLatestNews(symbol as string);
+        if (news) {
+          return res.json({
+            success: true,
+            symbol,
+            data: {
+              newsArticles: news.newsArticles,
+              marketIntelligence: news.marketIntelligence,
+              regulatoryUpdates: news.regulatoryUpdates,
+              macroFactors: news.macroFactors,
+              marketOutlook: news.marketOutlook,
+            },
+            timestamp: news.analysisDate,
+            from_cache: true,
+          });
+        }
+      }
+
+      await aiService.runCrewAI({
+        symbol: (symbol as string).toUpperCase(),
+        user_question: `Gather latest blockchain news, regulatory updates, and market intelligence for ${symbol}`,
+      });
+
+      const news = await aiService.getLatestNews(symbol as string);
+
+      res.json({
+        success: true,
+        symbol,
+        data: {
+          newsArticles: news?.newsArticles || [],
+          marketIntelligence: news?.marketIntelligence || {},
+          regulatoryUpdates: news?.regulatoryUpdates || [],
+          macroFactors: news?.macroFactors || {},
+          marketOutlook: news?.marketOutlook || "",
+        },
+        timestamp: news?.analysisDate || new Date(),
+        from_cache: false,
+      });
+    } catch (error) {
+      console.error("Blockchain news error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get blockchain news",
+      });
+    }
+  }
+
+  // Agent 6: Community Support
   async chatbotResponse(req: Request, res: Response) {
     try {
       const { question, context = {} } = req.body;
@@ -82,7 +334,8 @@ export class AIController {
       });
 
       const response =
-        aiResults.chatbot_responses?.response ||
+        aiResults.community_support?.answer ||
+        aiResults.community_support?.response ||
         "I'm here to help! What would you like to know?";
 
       res.json({
@@ -90,6 +343,7 @@ export class AIController {
         data: {
           response,
           question,
+          context: aiResults.community_support,
           timestamp: new Date(),
         },
       });
@@ -98,23 +352,55 @@ export class AIController {
       res.status(500).json({
         success: false,
         error: "Failed to get response",
-        data: {
-          response:
-            "I apologize, but I'm experiencing technical difficulties. Please try again later.",
-          question: req.body.question,
-          timestamp: new Date(),
-        },
       });
     }
   }
 
-  async getTechnicalAnalysis(req: Request, res: Response) {
+  async getCommunitySupport(req: Request, res: Response) {
     try {
-      const {
-        symbol,
-        period = "1d",
-        indicators = "rsi,macd,bollinger",
-      } = req.query;
+      const { question, symbol = "BTC" } = req.body;
+
+      if (!question) {
+        return res.status(400).json({
+          success: false,
+          error: "Question is required",
+        });
+      }
+
+      const community = await aiService.getLatestAnalysis(symbol, "community");
+
+      if (community) {
+        return res.json({
+          success: true,
+          data: community.data,
+          from_cache: true,
+        });
+      }
+
+      const aiResults = await aiService.runCrewAI({
+        symbol: symbol.toUpperCase(),
+        user_question: question,
+      });
+
+      res.json({
+        success: true,
+        data: aiResults.community_support || {},
+        from_cache: false,
+      });
+    } catch (error) {
+      console.error("Community support error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get community support",
+      });
+    }
+  }
+
+  // Combined Analysis (All agents)
+  async getMarketAnalysis(req: Request, res: Response) {
+    try {
+      const { symbol } = req.params;
+      const { force = false } = req.query;
 
       if (!symbol) {
         return res.status(400).json({
@@ -123,89 +409,125 @@ export class AIController {
         });
       }
 
-      // Get price data
-      const prices = await this.getPriceHistory(
-        symbol as string,
-        period as string
-      );
+      // Try cache first
+      if (!force) {
+        const [sentiment, technical, strategy, news] = await Promise.all([
+          aiService.getLatestAnalysis(symbol, "sentiment"),
+          aiService.getLatestAnalysis(symbol, "technical"),
+          aiService.getLatestAnalysis(symbol, "strategy"),
+          aiService.getLatestNews(symbol),
+        ]);
 
-      const indicatorArray =
-        typeof indicators === "string"
-          ? indicators.split(",")
-          : ["rsi", "macd"];
-
-      const technicalData: Record<string, any> = {};
-
-      // Get technical indicators
-      for (const indicator of indicatorArray) {
-        try {
-          technicalData[indicator] = await aiService.getTechnicalIndicators(
-            prices,
-            indicator.trim()
-          );
-        } catch (indicatorError) {
-          console.warn(`Failed to get ${indicator}:`, indicatorError);
-          technicalData[indicator] = {
-            error: `Failed to calculate ${indicator}`,
-          };
+        if (sentiment || technical || strategy || news) {
+          return res.json({
+            success: true,
+            symbol,
+            data: {
+              sentiment: sentiment?.data,
+              technical: technical?.data,
+              strategy: strategy?.data,
+              news: news?.newsArticles || [],
+            },
+            from_cache: true,
+          });
         }
       }
 
+      // Generate fresh comprehensive analysis
+      const aiResults = await aiService.runCrewAI({
+        symbol: symbol.toUpperCase(),
+        user_question: `Provide comprehensive market analysis for ${symbol} including sentiment, technical analysis, strategy recommendations, and latest news`,
+      });
+
       res.json({
         success: true,
-        symbol: symbol,
-        period,
-        data: technicalData,
-        timestamp: new Date(),
+        symbol,
+        data: {
+          sentiment: aiResults.sentiment_analysis,
+          technical: aiResults.technical_predictions,
+          strategy: aiResults.strategy_recommendations,
+          news: aiResults.blockchain_news,
+        },
+        from_cache: false,
       });
     } catch (error) {
-      console.error("Technical analysis error:", error);
+      console.error("Market analysis error:", error);
       res.status(500).json({
         success: false,
-        error: "Failed to get technical analysis",
-        message: error instanceof Error ? error.message : "Unknown error",
+        error: "Failed to get market analysis",
       });
     }
   }
 
-  private async getPriceHistory(
-    symbol: string,
-    period: string
-  ): Promise<number[]> {
+  async getComprehensiveAnalysis(req: Request, res: Response) {
     try {
-      // TODO: Implement real price fetching from CoinGecko API
-      // For now, return realistic dummy data
-      const basePrice =
-        symbol.toUpperCase() === "BTC"
-          ? 45000
-          : symbol.toUpperCase() === "ETH"
-          ? 3000
-          : 1;
+      const { symbol } = req.params;
 
-      return Array.from({ length: 30 }, (_, i) => {
-        const variance = (Math.random() - 0.5) * 0.1; // ±5% variance
-        return basePrice * (1 + variance);
+      // Get all analysis types for the symbol
+      const [sentiment, technical, strategy, news, community, quests] =
+        await Promise.all([
+          aiService.getLatestAnalysis(symbol, "sentiment"),
+          aiService.getLatestAnalysis(symbol, "technical"),
+          aiService.getLatestAnalysis(symbol, "strategy"),
+          aiService.getLatestNews(symbol),
+          aiService.getLatestAnalysis(symbol, "community"),
+          aiService.getActiveQuests(),
+        ]);
+
+      res.json({
+        success: true,
+        symbol,
+        data: {
+          sentiment: sentiment?.data || {},
+          technical: technical?.data || {},
+          strategy: strategy?.data || {},
+          news: news?.newsArticles || [],
+          community: community?.data || {},
+          quests:
+            quests.filter((q) => q.questId.includes(symbol.toUpperCase())) ||
+            [],
+        },
+        timestamps: {
+          sentiment: sentiment?.createdAt,
+          technical: technical?.createdAt,
+          strategy: strategy?.createdAt,
+          news: news?.analysisDate,
+          community: community?.createdAt,
+        },
       });
     } catch (error) {
-      console.error("Error getting price history:", error);
-      // Return default prices if API fails
-      return Array.from({ length: 30 }, () => 45000);
+      console.error("Comprehensive analysis error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get comprehensive analysis",
+      });
     }
   }
 
-  // Health check for AI services
   async healthCheck(req: Request, res: Response) {
     try {
-      // Test simple AI call
-      const testResult = await aiService.runCrewAI({
-        symbol: "BTC",
-        user_question: "health check",
-      });
+      const [totalQuests, totalAnalyses, totalNews] = await Promise.all([
+        DailyQuest.countDocuments({ active: true }),
+        aiService.getLatestAnalysis("BTC", "technical"),
+        aiService.getLatestNews("BTC"),
+      ]);
 
       res.json({
         success: true,
         status: "AI services operational",
-        python_service: "connected",
+        stats: {
+          active_quests: totalQuests,
+          has_analysis: !!totalAnalyses,
+          has_news: !!totalNews,
+        },
+        agents: {
+          daily_quests: "operational",
+          technical_analysis: "operational",
+          sentiment_analysis: "operational",
+          strategy_recommendations: "operational",
+          blockchain_news: "operational",
+          community_support: "operational",
+        },
         timestamp: new Date(),
       });
     } catch (error) {
@@ -213,7 +535,6 @@ export class AIController {
         success: false,
         status: "AI services unavailable",
         error: error instanceof Error ? error.message : "Unknown error",
-        timestamp: new Date(),
       });
     }
   }

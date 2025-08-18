@@ -4,7 +4,6 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from crew import SocialFiCrew
-# from crewai import Task  # Chỉ import khi cần test agent
 
 # Thư mục chứa output
 OUTPUT_DIR = Path("json")
@@ -14,197 +13,128 @@ def get_today_str():
     """Lấy ngày hiện tại theo timezone Asia/Bangkok"""
     return datetime.now(ZoneInfo("Asia/Bangkok")).strftime('%Y-%m-%d')
 
-def run():
-    """
-    Run the SocialFi crew with sample inputs
-    """
+def run_full_crew():
+    """Run the complete SocialFi crew analysis"""
     inputs = {
         'current_date': get_today_str(),
         'symbol': 'BTC',
         'user_question': 'What is the best strategy for trading BTC today?'
     }
     
-    print(f"🚀 Starting SocialFi Crew Analysis for {inputs['current_date']}")
-    print(f"📊 Analyzing cryptocurrency: {inputs['symbol']}")
-    print("-" * 50)
+    print(f"🚀 SocialFi Crew Analysis - {inputs['current_date']} | Symbol: {inputs['symbol']}")
     
     try:
-        # Initialize the crew
-        print("Initializing SocialFi Crew...")
         socialfi_crew = SocialFiCrew()
         crew = socialfi_crew.crew()
         
-        print(f"✅ Crew initialized with {len(crew.agents)} agents and {len(crew.tasks)} tasks")
-        print("Agents:", [agent.role for agent in crew.agents])
-        print("Tasks:", [task.description[:50] + "..." for task in crew.tasks])
+        print(f"✅ Initialized: {len(crew.agents)} agents, {len(crew.tasks)} tasks")
         
-        # Run the crew
-        print("🔄 Starting crew execution...")
         result = crew.kickoff(inputs=inputs)
         
-        print("✅ Analysis completed successfully!")
-        print("-" * 50)
-        print("📋 Results:")
-        print(result)
-        
-        # Output files to check
-        output_files = [
-            "daily_quests.json",
-            "blockchain_news.json", 
-            "sentiment_analysis.json",
-            "strategy_recommendations.json",
-            "nft_rewards.json",
-            "chatbot_responses.json"
-        ]
-        
-        print("\n📁 Output files generated:")
-        for file in output_files:
-            file_path = OUTPUT_DIR / file
-            try:
-                with open(file_path, 'r', encoding="utf-8") as f:
-                    content = json.load(f)
-                    print(f"  ✅ {file}")
-                    print(f"     📝 Preview: {str(content)[:100]}...")
-            except FileNotFoundError:
-                print(f"  ❌ {file} not found")
-            except json.JSONDecodeError:
-                with open(file_path, 'r', encoding="utf-8") as f:
-                    content = f.read()
-                    print(f"  ⚠️ {file} (not valid JSON, {len(content)} chars)")
+        print("✅ Analysis completed!")
+        print(f"📋 Result: {str(result)[:200]}...")
         
         return result
         
     except Exception as e:
-        print(f"❌ Error occurred: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ Error: {str(e)}")
         return None
 
-def test_individual_agents():
-    """
-    Test individual agents separately
-    """
+def test_single_agent(agent_name="quest_agent"):
+    """Test a single agent quickly"""
     try:
-        print("🧪 Testing individual agents...")
+        print(f"🧪 Testing {agent_name}...")
+        
         socialfi_crew = SocialFiCrew()
         
-        # Danh sách test cho từng agent
-        agent_tests = [
-            ("Quest Agent", socialfi_crew.quest_agent, "Generate a simple daily quest for BTC prediction"),
-            ("News Agent", socialfi_crew.news_agent, "Find latest BTC news from today"),
-            ("Social Agent", socialfi_crew.social_agent, "Analyze BTC sentiment on social media"),
-            ("Strategy Agent", socialfi_crew.strategy_agent, "Provide BTC trading strategy"),
-            ("NFT Reward Agent", socialfi_crew.nft_reward_agent, "Create NFT reward for quest completion"),
-            ("Chatbot AI", socialfi_crew.chatbot_ai, "Answer: What is Bitcoin?")
-        ]
+        # Get the agent method
+        agent_method = getattr(socialfi_crew, agent_name)
+        agent = agent_method()
         
+        # Simple test task
         from crewai import Task
+        test_task = Task(
+            description=f"Generate a brief analysis for BTC on {get_today_str()}",
+            expected_output="Brief analysis response",
+            agent=agent
+        )
         
-        for name, agent_func, test_task in agent_tests:
-            print(f"\n🤖 Testing {name}...")
-            try:
-                agent = agent_func()
-                task = Task(
-                    description=test_task,
-                    expected_output=f"Response from {name}",
-                    agent=agent
-                )
-                result = agent.execute_task(task)
-                print(f"  ✅ {name}: {str(result)[:150]}...")
-                
-            except Exception as e:
-                print(f"  ❌ {name} failed: {str(e)}")
+        result = agent.execute_task(test_task)
+        print(f"✅ {agent_name}: {str(result)[:150]}...")
         
-        print("\n✅ Individual agent tests completed!")
+        return result
         
     except Exception as e:
-        print(f"❌ Individual test error: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ {agent_name} test failed: {str(e)}")
+        return None
 
-def test_output_analysis():
-    """
-    Analyze existing output files
-    """
-    try:
-        print("📊 Analyzing existing output files...")
-        
-        sentiment_file = OUTPUT_DIR / 'sentiment_analysis.json'
-        with open(sentiment_file, 'r', encoding="utf-8") as f:
-            sentiment_data = json.load(f)
-            
-        print(f"\n📈 Sentiment Analysis Results:")
-        print(f"  Symbol: {sentiment_data.get('symbol')}")
-        print(f"  Sentiment Score: {sentiment_data.get('sentiment_score')}/10")
-        print(f"  Key Themes: {', '.join(sentiment_data.get('key_themes', []))}")
-        print(f"  Trending Hashtags: {', '.join(sentiment_data.get('trending_hashtags', []))}")
-        
-        other_files = [
-            "daily_quests.json",
-            "blockchain_news.json",
-            "strategy_recommendations.json",
-            "nft_rewards.json",
-            "chatbot_responses.json"
-        ]
-        
-        for file in other_files:
-            file_path = OUTPUT_DIR / file
+def check_outputs():
+    """Quick check of output files"""
+    output_files = [
+        "daily_quests.json",
+        "market_analysis.json",
+        "sentiment_analysis.json", 
+        "strategy_recommendations.json",
+        "technical_predictions.json",
+        "community_support.json"
+    ]
+    
+    print("📁 Output Status:")
+    for file in output_files:
+        file_path = OUTPUT_DIR / file
+        if file_path.exists():
             try:
                 with open(file_path, 'r', encoding="utf-8") as f:
                     data = json.load(f)
-                    print(f"\n📄 {file}: ✅ Valid JSON")
-                    if isinstance(data, dict):
-                        print(f"  Keys: {list(data.keys())}")
-                    else:
-                        print(f"  Type: {type(data).__name__}")
-            except FileNotFoundError:
-                print(f"\n📄 {file}: ❌ Not found")
-            except json.JSONDecodeError as e:
-                print(f"\n📄 {file}: ⚠️ Invalid JSON - {str(e)}")
-                
-    except Exception as e:
-        print(f"❌ Analysis error: {str(e)}")
+                print(f"  ✅ {file}")
+            except json.JSONDecodeError:
+                print(f"  ⚠️ {file} (invalid JSON)")
+        else:
+            print(f"  ❌ {file} (missing)")
 
-def train():
-    """
-    Train the crew for better performance
-    """
+def quick_test():
+    """Quick test with minimal agents"""
     inputs = {
         'current_date': get_today_str(),
-        'symbol': 'ETH',
-        'user_question': 'How should I diversify my crypto portfolio?'
+        'symbol': 'ETH', 
+        'user_question': 'Should I buy ETH now?'
     }
     
+    print(f"⚡ Quick Test - {inputs['symbol']}")
+    
     try:
-        socialfi_crew = SocialFiCrew()
-        crew = socialfi_crew.crew()
+        # Test just quest and sentiment agents
+        test_single_agent("quest_agent")
+        test_single_agent("social_agent")
         
-        print("🎓 Training the crew...")
-        crew.train(
-            n_iterations=2, 
-            filename="socialfi_training_data.pkl",
-            inputs=inputs
-        )
-        print("✅ Training completed!")
+        print("✅ Quick test completed!")
         
     except Exception as e:
-        print(f"❌ Training error: {str(e)}")
+        print(f"❌ Quick test error: {str(e)}")
+
+def main():
+    """Main function with simple command handling"""
+    if len(sys.argv) > 1:
+        command = sys.argv[1].lower()
+        
+        if command == 'full':
+            run_full_crew()
+        elif command == 'test':
+            agent_name = sys.argv[2] if len(sys.argv) > 2 else "quest_agent"
+            test_single_agent(agent_name)
+        elif command == 'quick':
+            quick_test()
+        elif command == 'check':
+            check_outputs()
+        else:
+            print("Usage:")
+            print("  python main.py full                    - Run complete crew")
+            print("  python main.py test [agent_name]       - Test single agent")
+            print("  python main.py quick                   - Quick test 2 agents")
+            print("  python main.py check                   - Check output files")
+    else:
+        # Default: run full crew
+        run_full_crew()
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        command = sys.argv[1]
-        
-        if command == 'train':
-            train()
-        elif command == 'test':
-            test_individual_agents()
-        elif command == 'analyze':
-            test_output_analysis()
-        else:
-            print("Available commands:")
-            print("  python main_socialfi.py        - Run full crew")
-            print("  python main_socialfi.py test   - Test individual agents")
-            print("  python main_socialfi.py train  - Train the crew")
-            print("  python main_socialfi.py analyze - Analyze output files")
-    else:
-        run()
+    main()

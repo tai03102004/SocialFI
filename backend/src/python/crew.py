@@ -11,8 +11,13 @@ import os, json
 import warnings
 warnings.filterwarnings("ignore") # Suppress unimportant warnings
 
+from tools.technical_analysis_tool import TechnicalAnalysisTool
+from tools.lstm_prediction_tool import LSTMPredictionTool
+
 # Load environment variables
 load_dotenv()
+os.environ["OPENAI_API_KEY"] = "dummy-key-for-crew-validation"
+
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL")
 GEMINI_REASONING_MODEL = os.environ.get("GEMINI_REASONING_MODEL")
@@ -20,47 +25,57 @@ SERPER_API_KEY = os.environ.get("SERPER_API_KEY")
 FIRECRAWL_API_KEY = os.environ.get("FIRECRAWL_API_KEY")
 
 # Create an LLM with a temperature of 0.3 for creative yet focused outputs
-gemini_llm = LLM(
-    model=GEMINI_MODEL,
-    api_key=GEMINI_API_KEY,
-    temperature=0.3,
-    max_tokens=4096
-)
+try:
+    gemini_llm = LLM(
+        model=GEMINI_MODEL,  
+        api_key=GEMINI_API_KEY,
+        temperature=0.3,
+        max_tokens=4096,
+    )
+    print("✅ Gemini LLM initialized successfully")
+except Exception as e:
+    print(f"❌ Gemini LLM error: {e}")
+    # Fallback to stable model
+    gemini_llm = LLM(
+        model="gemini/gemini-1.5-flash",
+        api_key=GEMINI_API_KEY,
+        temperature=0.3,
+    )
 
-# Create another LLM for reasoning tasks
-gemini_reasoning_llm = LLM(
-    model=GEMINI_REASONING_MODEL,
-    api_key=GEMINI_API_KEY,
-    temperature=0.2,
-    max_tokens=4096
-)
+# Create another LLM for reasoning tasks with error handling
+try:
+    gemini_reasoning_llm = LLM(
+        model=GEMINI_REASONING_MODEL,  
+        api_key=GEMINI_API_KEY,
+        temperature=0.2,
+        max_tokens=4096
+    )
+    print("✅ Gemini Reasoning LLM initialized successfully")
+except Exception as e:
+    print(f"❌ Gemini Reasoning LLM error: {e}")
+    # Fallback to stable model
+    gemini_reasoning_llm = LLM(
+        model="gemini/gemini-1.5-pro",
+        api_key=GEMINI_API_KEY,
+        temperature=0.2,
+    )
 
 # Initialize the tools for Web3/crypto data collection
-scrape_tool = ScrapeWebsiteTool()
-search_tool = SerperDevTool(
-    country="us",
-    locale="en",
-    location="United States",
-    n_results=20
-)
-web_search_tool = WebsiteSearchTool(
-    config=dict(
-        llm={
-            "provider": "google",
-            "config": {
-                "model": GEMINI_MODEL,
-                "api_key": GEMINI_API_KEY
-            }
-        },
-        embedder={
-            "provider": "google",
-            "config": {
-                "model": "models/text-embedding-004",
-                "task_type": "retrieval_document"
-            }
-        }
-    )
-)
+try:
+    scrape_tool = ScrapeWebsiteTool()
+    search_tool = SerperDevTool(
+        country="us",
+        locale="en",
+        location="United States",
+        n_results=10  # Giảm từ 20 xuống 10
+    ) if SERPER_API_KEY else None
+    web_search_tool = None
+    print("✅ Tools initialized successfully")
+except Exception as e:
+    print(f"⚠️ Tool initialization warning: {e}")
+    search_tool = None
+
+web_search_tool = None
 
 # Create Pydantic Models for Structured Output
 class QuestOutput(BaseModel):
@@ -73,10 +88,14 @@ class QuestOutput(BaseModel):
     rewards: Dict[str, Any] = Field(..., description="Reward structure (tokens, XP, NFTs)")
     difficulty: int = Field(..., description="Difficulty rating from 1-10")
 
-class NewsOutput(BaseModel):
-    articles: List[Dict[str, Any]] = Field(..., description="List of 3 most impactful news articles")
-    summary: str = Field(..., description="Overall market impact summary")
-    date_collected: str = Field(..., description="Date when news was collected")
+class MarketAnalysisOutput(BaseModel):
+    """Combined news + market intelligence output"""
+    news_articles: List[Dict[str, Any]] = Field(..., description="Top 3 impactful news articles")
+    market_intelligence: Dict[str, Any] = Field(..., description="On-chain metrics and whale movements")
+    regulatory_updates: List[str] = Field(..., description="Latest regulatory developments")
+    macro_factors: Dict[str, Any] = Field(..., description="Macro economic impact analysis")
+    market_outlook: str = Field(..., description="Short/medium/long-term outlook")
+    analysis_date: str = Field(..., description="Date of analysis")
 
 class SentimentOutput(BaseModel):
     symbol: str = Field(..., description="Cryptocurrency symbol analyzed")
@@ -86,20 +105,25 @@ class SentimentOutput(BaseModel):
     trending_hashtags: List[str] = Field(..., description="Trending hashtags")
     analysis_date: str = Field(..., description="Date of analysis")
 
-class StrategyOutput(BaseModel):
+class TechnicalPredictionOutput(BaseModel):
+    """Combined technical analysis + AI prediction output"""
     symbol: str = Field(..., description="Cryptocurrency symbol")
-    market_overview: str = Field(..., description="Current market trend analysis")
-    entry_strategy: Dict[str, Any] = Field(..., description="Entry/exit recommendations")
-    risk_management: Dict[str, Any] = Field(..., description="Risk management advice")
-    social_strategy: str = Field(..., description="Social engagement recommendations")
-    timeframe: Dict[str, str] = Field(..., description="Short-term and long-term outlook")
-    confidence_score: int = Field(..., description="Strategy confidence from 1-10")
+    technical_analysis: Dict[str, Any] = Field(..., description="Multi-timeframe technical analysis")
+    ai_predictions: Dict[str, Any] = Field(..., description="LSTM price predictions with confidence")
+    trading_signals: List[Dict[str, Any]] = Field(..., description="Actionable trading signals")
+    risk_levels: Dict[str, Any] = Field(..., description="Support/resistance and risk zones")
+    confidence_score: int = Field(..., description="Overall analysis confidence 1-10")
 
-class NFTRewardOutput(BaseModel):
-    eligible_players: List[Dict[str, Any]] = Field(..., description="Players eligible for NFT rewards")
-    nft_metadata: List[Dict[str, Any]] = Field(..., description="NFT metadata for rewards")
-    minting_status: Dict[str, Any] = Field(..., description="Minting transaction details")
-    distribution_confirmations: List[str] = Field(..., description="Distribution confirmations")
+class StrategyOutput(BaseModel):
+    """Combined strategy + gaming + risk management output"""
+    symbol: str = Field(..., description="Cryptocurrency symbol")
+    market_strategy: Dict[str, Any] = Field(..., description="Trading/investment strategy")
+    gaming_strategy: Dict[str, Any] = Field(..., description="Gaming optimization tactics")
+    risk_management: Dict[str, Any] = Field(..., description="Risk assessment and position sizing")
+    social_strategy: Dict[str, Any] = Field(..., description="Social engagement tactics")
+    portfolio_allocation: Dict[str, Any] = Field(..., description="Asset allocation recommendations")
+    timeframe_outlook: Dict[str, str] = Field(..., description="Short/medium/long-term outlook")
+    confidence_score: int = Field(..., description="Strategy confidence 1-10")
 
 class ChatbotOutput(BaseModel):
     user_question: str = Field(..., description="Original user question")
@@ -109,7 +133,7 @@ class ChatbotOutput(BaseModel):
 
 @CrewBase
 class SocialFiCrew():
-    """SocialFi AI Agents Crew"""
+    """Optimized SocialFi AI Agents Crew - 6 Core Agents"""
 
     # Create type-hinted class attributes
     agents: List[BaseAgent]
@@ -122,17 +146,19 @@ class SocialFiCrew():
             verbose=True,
             llm=gemini_llm,
             tools=[search_tool, scrape_tool],
-            max_rpm=10
+            max_rpm=5,
+            max_iter=3
         )
 
     @agent
-    def news_agent(self) -> Agent:
+    def market_analyst(self) -> Agent:
         return Agent(
-            config=self.agents_config["news_agent"],
+            config=self.agents_config["market_analyst"],
             verbose=True,
             llm=gemini_llm,
-            tools=[search_tool, scrape_tool, web_search_tool],
-            max_rpm=10
+            tools=[search_tool, scrape_tool],
+            max_rpm=5,
+            max_iter=3
         )
 
     @agent
@@ -142,7 +168,8 @@ class SocialFiCrew():
             verbose=True,
             llm=gemini_llm,
             tools=[search_tool, scrape_tool],
-            max_rpm=10
+            max_rpm=5,
+            max_iter=3
         )
     
     @agent
@@ -151,81 +178,91 @@ class SocialFiCrew():
             config=self.agents_config["strategy_agent"],
             verbose=True,
             llm=gemini_reasoning_llm,
-            tools=[search_tool, scrape_tool],
-            max_rpm=5
+            tools=[TechnicalAnalysisTool(),search_tool, scrape_tool],
+            max_rpm=3,
+            max_iter=3
         )
 
     @agent
-    def nft_reward_agent(self) -> Agent:
+    def technical_prediction_engine(self) -> Agent:
+        """Combined technical analysis + AI price prediction"""
         return Agent(
-            config=self.agents_config["nft_reward_agent"],
+            config=self.agents_config["technical_prediction_engine"],
             verbose=True,
-            llm=gemini_llm,
-            max_rpm=5
+            llm=gemini_reasoning_llm,
+            tools=[TechnicalAnalysisTool(), LSTMPredictionTool(), search_tool],
+            max_rpm=5,
+            max_iter=3
         )
 
     @agent
-    def chatbot_ai(self) -> Agent:
+    def community_support_manager(self) -> Agent:
         return Agent(
-            config=self.agents_config["chatbot_ai"],
+            config=self.agents_config["community_support_manager"],
             verbose=True,
+            tools=[search_tool],
             llm=gemini_llm,
-            tools=[search_tool, web_search_tool],
-            max_rpm=15
+            max_rpm=12,
+            max_iter=3
         )
-
+    # Phare1
     @task
     def quest_generation(self) -> Task:
         return Task(
             config=self.tasks_config["quest_generation"],
-            async_execution=True,
+            agent=self.quest_agent(),
             output_json=QuestOutput,
-            output_file="daily_quests.json"
+            output_file="json/daily_quests.json"
         )
 
     @task
-    def news_collection(self) -> Task:
+    def markets_collection(self) -> Task:
         return Task(
-            config=self.tasks_config["news_collection"],
-            async_execution=True,
-            output_json=NewsOutput,
-            output_file="blockchain_news.json"
+            config=self.tasks_config["comprehensive_market_analysis"],
+            agent=self.market_analyst(),
+            output_json=MarketAnalysisOutput,
+            output_file="json/blockchain_news.json"
         )
 
     @task
     def social_sentiment_analysis(self) -> Task:
         return Task(
             config=self.tasks_config["social_sentiment_analysis"],
-            async_execution=True,
+            agent=self.social_agent(),
             output_json=SentimentOutput,
-            output_file="sentiment_analysis.json"
+            output_file="json/sentiment_analysis.json"
+        )
+    
+    # Phare2
+    @task
+    def technical_prediction_analysis(self) -> Task:
+        return Task(
+            config=self.tasks_config["technical_prediction_analysis"],
+            context=[self.quest_generation()],
+            agent=self.technical_prediction_engine(),
+            output_json=TechnicalPredictionOutput,
+            output_file="json/technical_predictions.json"
         )
     
     @task
     def strategy_recommendation(self) -> Task:
         return Task(
             config=self.tasks_config["strategy_recommendation"],
-            context=[self.news_collection(), self.social_sentiment_analysis()],
+            context=[self.markets_collection(), self.social_sentiment_analysis()],
             output_json=StrategyOutput,
-            output_file="strategy_recommendations.json"
+            agent=self.strategy_agent(),
+            output_file="json/strategy_recommendations.json"
         )
 
     @task
-    def nft_reward_management(self) -> Task:
+    def community_support_and_rewards(self) -> Task:
         return Task(
-            config=self.tasks_config["nft_reward_management"],
+            config=self.tasks_config["community_support_and_rewards"],
+            agent=self.community_support_manager(),
             async_execution=True,
-            output_json=NFTRewardOutput,
-            output_file="nft_rewards.json"
-        )
-
-    @task
-    def chatbot_response_generation(self) -> Task:
-        return Task(
-            config=self.tasks_config["chatbot_response_generation"],
-            context=[self.news_collection(), self.social_sentiment_analysis(), self.strategy_recommendation()],
+            context=[self.markets_collection(), self.social_sentiment_analysis()],
             output_json=ChatbotOutput,
-            output_file="chatbot_responses.json"
+            output_file="json/community_support.json"
         )
 
     @crew
@@ -234,7 +271,9 @@ class SocialFiCrew():
         return Crew(
             agents=self.agents,
             tasks=self.tasks,
-            process=Process.hierarchical,
+            process=Process.sequential,
             verbose=True,
-            manager_llm=gemini_reasoning_llm
+            manager_llm=gemini_reasoning_llm,
+            max_rpm=10, 
+            # memory=True  # Enable memory for learning
         )

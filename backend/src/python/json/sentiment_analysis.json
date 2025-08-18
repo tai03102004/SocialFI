@@ -1,19 +1,17 @@
 {
-  "symbol": "BTC/Web3 Gaming",
+  "symbol": "BTC",
   "sentiment_score": 7,
   "key_themes": [
-    "Bitcoin nearing all-time highs",
-    "Web3 gaming partnerships and AI integration",
-    "Shaky sentiment in Web3 gaming",
-    "Mainstream adoption of crypto gaming"
+    "Bitcoin price surge",
+    "Institutional adoption",
+    "Macroeconomic factors",
+    "Prediction market analysis"
   ],
-  "influencer_sentiment": "Generally bullish on BTC, mixed on Web3 gaming with cautious optimism.",
+  "influencer_sentiment": "Positive, with analysts like Dominic Basulto from The Motley Fool expressing bullish views, but also cautioning about macroeconomic risks.",
   "trending_hashtags": [
     "#Bitcoin",
-    "#Web3Gaming",
-    "#Crypto",
-    "#GameFi",
-    "#SocialFi"
+    "#BTC",
+    "#Crypto"
   ],
-  "analysis_date": "2025-08-12"
+  "analysis_date": "2025-08-17"
 }
