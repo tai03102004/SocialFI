@@ -5,184 +5,155 @@ import "@zetachain/protocol-contracts/contracts/zevm/interfaces/UniversalContrac
 import "@zetachain/protocol-contracts/contracts/zevm/interfaces/IGatewayZEVM.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./AIOracle.sol"; // Assuming AIOracle is in the same directory
 
-contract GameFiCore is UniversalContract, Ownable {
-    IGatewayZEVM public immutable gateway;
-    address public immutable guiToken;
+contract GameFiCore is Ownable {
+    address public guiToken;
+    address public aiOracle;
 
     struct Player {
         uint256 score;
         uint256 totalPredictions;
+        uint256 correctPredictions;
         uint256 stakedAmount;
+        uint256 aiFollowScore;
         string preferredAsset;
     }
 
     struct Prediction {
         address player;
         uint256 predictedPrice;
+        uint256 aiPredictedPrice;
         uint256 actualPrice;
+        uint256 playerConfidence;
+        uint256 aiConfidence;
         uint256 timestamp;
         bool resolved;
-        bool correct;
+        bool playerCorrect;
+        bool aiCorrect;
         string asset;
+    }
+
+    struct Quest {
+        uint256 id;
+        string title;
+        string description;
+        string questType;
+        uint256 reward;
+        uint256 deadline;
+        bool active;
     }
 
     mapping(address => Player) public players;
     mapping(uint256 => Prediction) public predictions;
     mapping(address => uint256[]) public playerPredictions;
+    mapping(uint256 => Quest) public quests;
+    mapping(address => mapping(uint256 => bool)) public completedQuests;
 
     uint256 public nextPredictionId;
+    uint256 public nextQuestId = 1;
     uint256 public constant BASE_REWARD = 20 * 1e18;
+    uint256 public constant AI_FOLLOW_BONUS = 10 * 1e18;
 
     event PredictionMade(
         address indexed player,
         uint256 indexed predictionId,
-        uint256 predictedPrice,
+        uint256 playerPrice,
+        uint256 aiPrice,
         string asset
     );
 
-    event PredictionResolved(
-        uint256 indexed predictionId,
-        uint256 actualPrice,
-        bool correct
-    );
-
-    event CrossChainReward(
+    event QuestCreated(uint256 indexed questId, string title, uint256 reward);
+    event QuestCompleted(
         address indexed player,
-        uint256 amount,
-        uint256 targetChain
+        uint256 indexed questId,
+        uint256 reward
     );
+    event AIBonusAwarded(address indexed player, uint256 bonus);
 
-    constructor(address _gateway, address _guiToken) Ownable(msg.sender) {
-        gateway = IGatewayZEVM(_gateway);
+    constructor(address _guiToken, address _aiOracle) Ownable(msg.sender) {
         guiToken = _guiToken;
+        aiOracle = _aiOracle;
     }
 
-    // Cross-chain entry point
-    function onCall(
-        MessageContext calldata context,
-        address zrc20,
-        uint256 amount,
-        bytes calldata message
-    ) external onlyGateway {
-        (uint8 action, bytes memory data) = abi.decode(message, (uint8, bytes));
-
-        // Convert bytes to address properly
-        address sender = address(
-            uint160(uint256(keccak256(context.sender)) >> 96)
-        );
-
-        if (action == 1) {
-            // Make prediction
-            (uint256 predictedPrice, string memory asset) = abi.decode(
-                data,
-                (uint256, string)
-            );
-            _makePrediction(sender, predictedPrice, asset);
-        } else if (action == 2) {
-            // Stake tokens
-            _stakeTokens(sender, amount);
-        } else if (action == 3) {
-            // Claim rewards cross-chain
-            uint256 targetChain = abi.decode(data, (uint256));
-            _claimRewardsCrossChain(sender, zrc20, targetChain);
-        }
-    }
-
-    function onRevert(
-        RevertContext calldata revertContext
-    ) external onlyGateway {
-        // Simple revert handling - refund tokens
-        // Implementation for handling failed cross-chain transactions
-        // Can emit events or refund tokens here
-    }
-
-    // Direct functions for same-chain interactions
-    function makePrediction(
+    // 🎯 Make prediction với AI comparison
+    function makeAIPrediction(
         uint256 predictedPrice,
-        string memory asset
+        string memory asset,
+        uint256 confidence
     ) external {
-        _makePrediction(msg.sender, predictedPrice, asset);
-    }
-
-    function stakeTokens(uint256 amount) external {
-        require(
-            IERC20(guiToken).transferFrom(msg.sender, address(this), amount),
-            "Transfer failed"
-        );
-        _stakeTokens(msg.sender, amount);
-    }
-
-    function _makePrediction(
-        address player,
-        uint256 predictedPrice,
-        string memory asset
-    ) internal {
-        require(predictedPrice > 0, "Invalid price prediction");
+        // Get AI prediction từ oracle
+        SimpleAIOracle.AIData memory aiTechnical = SimpleAIOracle(aiOracle)
+            .getAIData(asset, "technical");
 
         uint256 predictionId = nextPredictionId++;
 
         predictions[predictionId] = Prediction({
-            player: player,
+            player: msg.sender,
             predictedPrice: predictedPrice,
+            aiPredictedPrice: aiTechnical.predictedPrice,
             actualPrice: 0,
+            playerConfidence: confidence,
+            aiConfidence: aiTechnical.confidence,
             timestamp: block.timestamp,
             resolved: false,
-            correct: false,
+            playerCorrect: false,
+            aiCorrect: false,
             asset: asset
         });
 
-        playerPredictions[player].push(predictionId);
-        players[player].totalPredictions++;
-        players[player].preferredAsset = asset;
+        playerPredictions[msg.sender].push(predictionId);
+        players[msg.sender].totalPredictions++;
 
-        emit PredictionMade(player, predictionId, predictedPrice, asset);
-    }
-
-    function _stakeTokens(address player, uint256 amount) internal {
-        require(amount > 0, "Invalid stake amount");
-        players[player].stakedAmount += amount;
-    }
-
-    function _claimRewardsCrossChain(
-        address player,
-        address zrc20,
-        uint256 targetChain
-    ) internal {
-        uint256 reward = players[player].score * 1e18;
-        require(reward > 0, "No rewards to claim");
-
-        // Reset score after claiming
-        players[player].score = 0;
-
-        // Prepare call options
-        CallOptions memory callOptions = CallOptions({
-            gasLimit: 100000,
-            isArbitraryCall: false
-        });
-
-        // Prepare revert options
-        RevertOptions memory revertOptions = RevertOptions({
-            revertAddress: player,
-            callOnRevert: false,
-            abortAddress: address(0),
-            revertMessage: abi.encode("Reward claim failed"),
-            onRevertGasLimit: 1
-        });
-
-        // Send tokens cross-chain via ZetaChain Gateway
-        gateway.call(
-            abi.encodePacked(player),
-            zrc20,
-            abi.encode(reward),
-            callOptions,
-            revertOptions
+        emit PredictionMade(
+            msg.sender,
+            predictionId,
+            predictedPrice,
+            aiTechnical.predictedPrice,
+            asset
         );
-
-        emit CrossChainReward(player, reward, targetChain);
     }
 
-    // Owner function to resolve predictions (for testing)
+    // 🏆 Create quest from AI agents
+    function createQuest(
+        string memory title,
+        string memory description,
+        string memory questType,
+        uint256 reward,
+        uint256 duration
+    ) external onlyOwner {
+        uint256 questId = nextQuestId++;
+
+        quests[questId] = Quest({
+            id: questId,
+            title: title,
+            description: description,
+            questType: questType,
+            reward: reward,
+            deadline: block.timestamp + duration,
+            active: true
+        });
+
+        emit QuestCreated(questId, title, reward);
+    }
+
+    // ✅ Complete quest
+    function completeQuest(uint256 questId) external {
+        Quest storage quest = quests[questId];
+        require(quest.active, "Quest not active");
+        require(block.timestamp <= quest.deadline, "Quest expired");
+        require(!completedQuests[msg.sender][questId], "Already completed");
+
+        completedQuests[msg.sender][questId] = true;
+
+        // Reward player
+        IERC20(guiToken).transfer(msg.sender, quest.reward);
+        players[msg.sender].score += quest.reward / 1e18;
+
+        emit QuestCompleted(msg.sender, questId, quest.reward);
+    }
+
+    // 🎯 Resolve prediction và tính rewards
     function resolvePrediction(
         uint256 predictionId,
         uint256 actualPrice
@@ -193,24 +164,58 @@ contract GameFiCore is UniversalContract, Ownable {
         prediction.actualPrice = actualPrice;
         prediction.resolved = true;
 
-        // Simple accuracy check (within 5% = correct)
-        uint256 diff = prediction.predictedPrice > actualPrice
+        // Check accuracy (within 5% = correct)
+        uint256 playerDiff = prediction.predictedPrice > actualPrice
             ? prediction.predictedPrice - actualPrice
             : actualPrice - prediction.predictedPrice;
 
-        bool correct = (diff * 100) / actualPrice <= 5; // 5% tolerance
-        prediction.correct = correct;
+        uint256 aiDiff = prediction.aiPredictedPrice > actualPrice
+            ? prediction.aiPredictedPrice - actualPrice
+            : actualPrice - prediction.aiPredictedPrice;
 
-        if (correct) {
-            // Reward player
-            players[prediction.player].score += BASE_REWARD / 1e18;
-            IERC20(guiToken).transfer(prediction.player, BASE_REWARD);
+        bool playerCorrect = (playerDiff * 100) / actualPrice <= 5;
+        bool aiCorrect = (aiDiff * 100) / actualPrice <= 5;
+
+        prediction.playerCorrect = playerCorrect;
+        prediction.aiCorrect = aiCorrect;
+
+        Player storage player = players[prediction.player];
+        uint256 totalReward = 0;
+
+        if (playerCorrect) {
+            player.correctPredictions++;
+            totalReward += BASE_REWARD;
+
+            // Bonus nếu follow AI và cả 2 đều đúng
+            if (
+                aiCorrect &&
+                _isFollowingAI(
+                    prediction.predictedPrice,
+                    prediction.aiPredictedPrice
+                )
+            ) {
+                totalReward += AI_FOLLOW_BONUS;
+                player.aiFollowScore += 10;
+                emit AIBonusAwarded(prediction.player, AI_FOLLOW_BONUS);
+            }
+
+            IERC20(guiToken).transfer(prediction.player, totalReward);
+            player.score += totalReward / 1e18;
         }
-
-        emit PredictionResolved(predictionId, actualPrice, correct);
     }
 
-    // View functions
+    function _isFollowingAI(
+        uint256 playerPrice,
+        uint256 aiPrice
+    ) internal pure returns (bool) {
+        if (aiPrice == 0) return false;
+        uint256 diff = playerPrice > aiPrice
+            ? playerPrice - aiPrice
+            : aiPrice - playerPrice;
+        return (diff * 100) / aiPrice <= 10; // Within 10%
+    }
+
+    // 📊 View functions for frontend
     function getPlayerStats(
         address player
     )
@@ -219,23 +224,24 @@ contract GameFiCore is UniversalContract, Ownable {
         returns (
             uint256 score,
             uint256 totalPredictions,
-            uint256 stakedAmount,
-            string memory preferredAsset
+            uint256 correctPredictions,
+            uint256 aiFollowScore,
+            uint256 accuracy
         )
     {
         Player memory playerData = players[player];
+        uint256 accuracyCalc = playerData.totalPredictions > 0
+            ? (playerData.correctPredictions * 100) /
+                playerData.totalPredictions
+            : 0;
+
         return (
             playerData.score,
             playerData.totalPredictions,
-            playerData.stakedAmount,
-            playerData.preferredAsset
+            playerData.correctPredictions,
+            playerData.aiFollowScore,
+            accuracyCalc
         );
-    }
-
-    function getPrediction(
-        uint256 predictionId
-    ) external view returns (Prediction memory) {
-        return predictions[predictionId];
     }
 
     function getPlayerPredictions(
@@ -244,8 +250,33 @@ contract GameFiCore is UniversalContract, Ownable {
         return playerPredictions[player];
     }
 
-    modifier onlyGateway() {
-        require(msg.sender == address(gateway), "Only gateway");
-        _;
+    function getPrediction(
+        uint256 predictionId
+    ) external view returns (Prediction memory) {
+        return predictions[predictionId];
+    }
+
+    function getActiveQuests() external view returns (Quest[] memory) {
+        uint256 activeCount = 0;
+        for (uint256 i = 1; i < nextQuestId; i++) {
+            if (quests[i].active && block.timestamp <= quests[i].deadline) {
+                activeCount++;
+            }
+        }
+
+        Quest[] memory activeQuests = new Quest[](activeCount);
+        uint256 index = 0;
+        for (uint256 i = 1; i < nextQuestId; i++) {
+            if (quests[i].active && block.timestamp <= quests[i].deadline) {
+                activeQuests[index] = quests[i];
+                index++;
+            }
+        }
+
+        return activeQuests;
+    }
+
+    function getQuest(uint256 questId) external view returns (Quest memory) {
+        return quests[questId];
     }
 }
