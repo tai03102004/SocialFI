@@ -35,9 +35,13 @@ const CONTRACT_ABIS = {
   SocialFi: [
     "function createPost(string content)",
     "function likePost(uint256 postId)",
-    "function getPost(uint256 postId) view returns (tuple(uint256 id, address author, string content, uint256 timestamp, uint256 likes, uint256 aiSentimentScore, bool isAIGenerated))",
-    "function getUserProfile(address user) view returns (tuple(address userAddress, uint256 totalPosts, uint256 socialScore, uint256 aiAlignmentScore))",
+    "function getPost(uint256 postId) view returns (tuple(uint256 id, address author, string content, string imageHash, uint256 timestamp, uint256 likes, uint256 comments, bool isActive, uint256 chainId))",
+    "function getTotalPosts() view returns (uint256)",
     "function getRecentPosts(uint256 count) view returns (uint256[])",
+    "function getUserProfile(address user) view returns (tuple(address userAddress, uint256 totalPosts, uint256 socialScore, uint256 aiAlignmentScore))",
+    // Events
+    "event PostCreated(uint256 indexed postId, address indexed author, uint256 chainId)",
+    "event PostLiked(uint256 indexed postId, address indexed liker)",
   ],
   NFTAchievements: [
     "function getPlayerAchievements(address player) view returns (uint256[])",
@@ -93,10 +97,12 @@ interface Post {
   id: bigint;
   author: string;
   content: string;
+  imageHash: string;
   timestamp: bigint;
   likes: bigint;
-  aiSentimentScore: bigint;
-  isAIGenerated: boolean;
+  comments: bigint;
+  isActive: boolean;
+  chainId: bigint;
 }
 
 interface UserProfile {
@@ -391,6 +397,84 @@ export function useSocialFi() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const getRecentPosts = useCallback(
+    async (count: number = 10): Promise<any[]> => {
+      if (!isConnected || !contracts.SocialFi) {
+        console.log("❌ Not connected or no SocialFi contract");
+        return [];
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        console.log("🔍 Checking SocialFi contract methods...");
+
+        // Thử approach khác - fetch posts trực tiếp từ ID 1 đến một số cao
+        const posts: any[] = [];
+        const maxPostsToCheck = 50; // Check tối đa 50 posts
+
+        for (let postId = 1; postId <= maxPostsToCheck; postId++) {
+          try {
+            console.log(`📖 Fetching post ${postId}...`);
+            const post = await contracts.SocialFi.getPost(postId);
+
+            // Check nếu post tồn tại và active
+            if (
+              post &&
+              post.isActive &&
+              post.author !== "0x0000000000000000000000000000000000000000"
+            ) {
+              posts.push({
+                id: post.id,
+                author: post.author,
+                content: post.content,
+                imageHash: post.imageHash,
+                timestamp: post.timestamp,
+                likes: post.likes,
+                comments: post.comments,
+                isActive: post.isActive,
+                chainId: post.chainId,
+              });
+
+              console.log(`✅ Found post ${postId}:`, {
+                id: Number(post.id),
+                author: post.author,
+                content: post.content.substring(0, 50) + "...",
+              });
+            }
+          } catch (postError) {
+            // Nếu post không tồn tại, có thể đã hết posts
+            console.log(`⚠️ Post ${postId} not found or error:`, postError);
+            if (postId > 10 && posts.length === 0) {
+              // Nếu đã check 10 posts đầu mà không có gì, có thể không có posts
+              break;
+            }
+            continue;
+          }
+        }
+
+        // Sắp xếp posts theo thời gian (mới nhất trước)
+        posts.sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
+
+        // Lấy số lượng posts yêu cầu
+        const limitedPosts = posts.slice(0, count);
+
+        console.log(`✅ Loaded ${limitedPosts.length} posts from blockchain`);
+        return limitedPosts;
+      } catch (error) {
+        console.error("Failed to get recent posts:", error);
+        setError(
+          error instanceof Error ? error.message : "Failed to fetch posts"
+        );
+        return [];
+      } finally {
+        setLoading(false);
+      }
+    },
+    [isConnected, contracts.SocialFi]
+  );
+
   const createPost = useCallback(
     async (content: string) => {
       if (!isConnected || !contracts.SocialFi || !signer) {
@@ -445,48 +529,6 @@ export function useSocialFi() {
       }
     },
     [isConnected, contracts.SocialFi, signer]
-  );
-
-  const getRecentPosts = useCallback(
-    async (count: number = 10): Promise<Post[]> => {
-      if (!isConnected || !contracts.SocialFi) return [];
-
-      try {
-        setLoading(true);
-        setError(null);
-
-        const postIds = await contracts.SocialFi.getRecentPosts(count);
-
-        const posts: Post[] = [];
-        for (const postId of postIds) {
-          try {
-            const post = await contracts.SocialFi.getPost(postId);
-            posts.push({
-              id: post[0],
-              author: post[1],
-              content: post[2],
-              timestamp: post[3],
-              likes: post[4],
-              aiSentimentScore: post[5],
-              isAIGenerated: post[6],
-            });
-          } catch (error) {
-            console.error(`Failed to fetch post ${postId}:`, error);
-          }
-        }
-
-        return posts;
-      } catch (error) {
-        console.error("Failed to get recent posts:", error);
-        setError(
-          error instanceof Error ? error.message : "Failed to fetch posts"
-        );
-        return [];
-      } finally {
-        setLoading(false);
-      }
-    },
-    [isConnected, contracts.SocialFi]
   );
 
   const getUserProfile = useCallback(async (): Promise<UserProfile | null> => {

@@ -1,17 +1,10 @@
 {
-  "symbol": "BTC",
-  "sentiment_score": 7,
+  "symbol": "Changelly",
+  "sentiment_score": 5,
   "key_themes": [
-    "Bitcoin price surge",
-    "Institutional adoption",
-    "Macroeconomic factors",
-    "Prediction market analysis"
+    "cryptocurrency exchange"
   ],
-  "influencer_sentiment": "Positive, with analysts like Dominic Basulto from The Motley Fool expressing bullish views, but also cautioning about macroeconomic risks.",
-  "trending_hashtags": [
-    "#Bitcoin",
-    "#BTC",
-    "#Crypto"
-  ],
-  "analysis_date": "2025-08-17"
+  "influencer_sentiment": "No influencer opinions available.",
+  "trending_hashtags": [],
+  "analysis_date": "2024-05-08"
 }

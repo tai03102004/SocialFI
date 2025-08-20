@@ -1,24 +1,49 @@
 {
-  "news_articles": [],
+  "news_articles": [
+    {
+      "publication_date": "Aug 18, 2025",
+      "source": "Yellow.com",
+      "title": "Can XRP Ever Flip Ethereum? A 2025 Deep Dive Into Market Caps, Adoption, and Reality",
+      "market_impact_summary": "While not directly about BTC, this article provides context on the broader crypto market, discussing market cap dynamics and adoption trends. This helps in understanding the competitive landscape and potential future scenarios for Bitcoin, especially in relation to other major cryptocurrencies."
+    },
+    {
+      "publication_date": "Aug 18, 2025",
+      "source": "Yellow.com",
+      "title": "Where to Buy Real Estate with Bitcoin and USDT in 2025 – Global Guide",
+      "market_impact_summary": "This article, though focused on real estate, highlights the increasing real-world utility of cryptocurrencies like Bitcoin. It indicates growing adoption and potential for Bitcoin to be used in various transactions, which could positively influence its demand and market value."
+    }
+  ],
   "market_intelligence": {
     "on_chain_metrics": {
-      "active_addresses": "Data unavailable - Requires on-chain data analysis tools.",
-      "transaction_volume": "Data unavailable - Requires on-chain data analysis tools.",
-      "hodl_patterns": "Data unavailable - Requires on-chain data analysis tools.",
-      "whale_movements": "Data unavailable - Requires on-chain data analysis tools."
+      "active_addresses": "Data unavailable within the last 7 days. However, the article from Yellow.com mentions institutional accumulation and a bifurcated ownership structure, suggesting active addresses are likely shifting.",
+      "transaction_volume": "Data unavailable within the last 7 days. The article mentions low on-chain fees, indicating efficient network utilization, but not necessarily high transaction volume.",
+      "HODL_patterns": "The article highlights institutional dominance, with large entities holding more BTC, indicating strong HODL patterns among institutional investors. Retail investors show more volatility."
     },
-    "exchange_flows": "Data unavailable - Requires exchange data analysis tools.",
-    "institutional_adoption": "Data unavailable - Requires institutional investment tracking tools.",
-    "corporate_treasury_updates": "Data unavailable - Requires corporate financial data analysis tools."
+    "exchange_flows_and_whale_wallet_movements": "Exchange flow analysis reveals that large holders increasingly use exchanges for distribution strategies, with CryptoQuant's Exchange Whale Ratio reaching highest levels since September 2024, suggesting potential selling pressure from major holders. Entities holding more than 10,000 BTC maintain an accumulation score of 0.90, indicating active accumulation concurrent with retail distribution.",
+    "institutional_adoption_and_corporate_treasury_updates": "Institutional investment has reached $414 billion. Major corporations, exchange-traded funds, and governments hold approximately 3.09 million BTC, representing 15% of Bitcoin's total supply. MicroStrategy holds 629,376 BTC. Over 70 public companies maintain Bitcoin treasury standards. BlackRock's iShares Bitcoin Trust (IBIT) leads with over $70 billion in assets under management.",
+    "regulatory_developments_and_government_policies": "The United States implemented pro-cryptocurrency policies, establishing the Strategic Bitcoin Reserve. The BITCOIN Act of 2025 proposes acquiring up to 1 million Bitcoin. Sixteen U.S. states have introduced similar Bitcoin reserve legislation. The GENIUS Act regulates stablecoin issuance, and the CLARITY Act defines digital assets. The appointment of Paul Atkins as SEC Chairman signals a shift from enforcement-driven regulation to innovation-supportive approaches. The EU's MiCA regulation is fully implemented.",
+    "macro_economic_factors": {
+      "DXY": "The Federal Reserve maintained the federal funds rate at 4.25%-4.50% through July 2025, with only two rate cuts expected for the full year, creating headwinds for Bitcoin by increasing opportunity costs.",
+      "interest_rates": "Higher-for-longer interest rates create headwinds for Bitcoin.",
+      "inflation": "March 2025 CPI data showed 2.8% annual inflation. Bitcoin's effectiveness as an inflation hedge diminishes during bearish market conditions."
+    },
+    "network_health_security_metrics_and_mining_statistics": {
+      "network_health": "Base layer transaction throughput maintains approximately 7 transactions per second. Low on-chain fees averaging 2 satoshis per virtual byte indicate efficient network utilization. The network achieved 99.98%+ uptime throughout 2025.",
+      "security_metrics": "Hash rate reached historic milestones including the first-ever 1 zettahash (1,000 EH/s) in April 2025. Mining difficulty adjustments reached all-time highs of 129.44T by August 2025.",
+      "mining_statistics": "Foundry USA Pool dominates mining with 31.58% of total network hash rate. Hash price decline to historic lows of $42.40 per exahash in 2025 creates acute profitability pressure. The United States hosts approximately 40% of global hash rate. 54.5% of Bitcoin mining is powered by renewable sources."
+    }
   },
   "regulatory_updates": [
-    "Data unavailable - Requires regulatory news aggregation and analysis."
+    "U.S. established the Strategic Bitcoin Reserve.",
+    "The BITCOIN Act of 2025 proposes acquiring up to 1 million Bitcoin.",
+    "The GENIUS Act regulates stablecoin issuance.",
+    "The CLARITY Act defines digital assets.",
+    "The EU's MiCA regulation is fully implemented."
   ],
   "macro_factors": {
-    "dxy": "Data unavailable - Requires macroeconomic data feed.",
-    "interest_rates": "Data unavailable - Requires macroeconomic data feed.",
-    "inflation": "Data unavailable - Requires macroeconomic data feed."
+    "interest_rates": "Higher-for-longer interest rates create headwinds for Bitcoin.",
+    "inflation": "March 2025 CPI data showed 2.8% annual inflation. Bitcoin's effectiveness as an inflation hedge diminishes during bearish market conditions."
   },
-  "market_outlook": "Due to the lack of current data, a definitive market outlook cannot be provided. The market sentiment is uncertain. Further data analysis is required to assess short, medium, and long-term trends. Confidence indicators are currently unavailable.",
-  "analysis_date": "2025-08-17"
+  "market_outlook": "The market outlook for Bitcoin in the short to medium term is mixed. Institutional adoption and regulatory clarity provide a strong foundation for long-term growth. However, the high correlation with traditional markets, especially technology stocks, makes Bitcoin susceptible to broader market downturns. Algorithmic trading and AI-driven strategies introduce new volatility patterns. The mining industry's consolidation and the impact of macroeconomic factors like interest rates and inflation will also influence price movements. The long-term outlook remains positive due to the increasing institutional interest, technological advancements, and the potential for Bitcoin to become a foundational component of the global financial system, but with increased volatility.",
+  "analysis_date": "2025-08-20"
 }

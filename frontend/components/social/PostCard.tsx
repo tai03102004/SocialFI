@@ -8,7 +8,8 @@ import {
   ChatBubbleOvalLeftIcon, 
   ArrowPathIcon, 
   ShareIcon,
-  EllipsisHorizontalIcon 
+  EllipsisHorizontalIcon,
+  SparklesIcon 
 } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid'
 
@@ -26,6 +27,8 @@ interface PostCardProps {
     shares: number
     liked: boolean
     chainId: number
+    aiSentimentScore?: number
+    isAIGenerated?: boolean
   }
   onLike: (postId: number) => void
 }
@@ -44,8 +47,36 @@ const chainColors = {
   7001: 'bg-green-500'
 }
 
+const getSentimentColor = (score: number) => {
+  if (score >= 7) return 'text-green-400'
+  if (score >= 4) return 'text-yellow-400'
+  return 'text-red-400'
+}
+
+const getSentimentEmoji = (score: number) => {
+  if (score >= 8) return '😍'
+  if (score >= 6) return '😊'
+  if (score >= 4) return '😐'
+  if (score >= 2) return '😔'
+  return '😱'
+}
+
 export function PostCard({ post, onLike }: PostCardProps) {
   const [showComments, setShowComments] = useState(false)
+  const [isLiking, setIsLiking] = useState(false)
+
+  const handleLike = async () => {
+    if (isLiking) return
+    
+    setIsLiking(true)
+    try {
+      await onLike(post.id)
+    } catch (error) {
+      console.error('Failed to like post:', error)
+    } finally {
+      setIsLiking(false)
+    }
+  }
 
   return (
     <motion.div
@@ -67,6 +98,12 @@ export function PostCard({ post, onLike }: PostCardProps) {
               <span className="text-xs text-gray-400">
                 {chainNames[post.chainId as keyof typeof chainNames]}
               </span>
+              {post.isAIGenerated && (
+                <div className="flex items-center space-x-1">
+                  <SparklesIcon className="h-4 w-4 text-purple-400" />
+                  <span className="text-xs text-purple-400">AI</span>
+                </div>
+              )}
             </div>
             <p className="text-sm text-gray-400">{post.author}</p>
           </div>
@@ -95,6 +132,16 @@ export function PostCard({ post, onLike }: PostCardProps) {
             />
           </div>
         )}
+
+        {/* AI Sentiment Score */}
+        {typeof post.aiSentimentScore === 'number' && (
+          <div className="mt-3 flex items-center space-x-2 text-sm">
+            <span className="text-gray-400">AI Sentiment:</span>
+            <span className={getSentimentColor(post.aiSentimentScore)}>
+              {getSentimentEmoji(post.aiSentimentScore)} {post.aiSentimentScore}/10
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
@@ -103,10 +150,11 @@ export function PostCard({ post, onLike }: PostCardProps) {
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            onClick={() => onLike(post.id)}
+            onClick={handleLike}
+            disabled={isLiking}
             className={`flex items-center space-x-2 transition-colors ${
               post.liked ? 'text-red-500' : 'text-gray-400 hover:text-red-400'
-            }`}
+            } ${isLiking ? 'opacity-50' : ''}`}
           >
             {post.liked ? (
               <HeartIconSolid className="h-5 w-5" />
@@ -168,7 +216,7 @@ export function PostCard({ post, onLike }: PostCardProps) {
             
             {/* Sample comments */}
             <div className="text-sm text-gray-400 ml-11">
-              No comments yet. Be the first to comment!
+              Comments coming soon! 💬
             </div>
           </div>
         </motion.div>

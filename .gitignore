@@ -24,5 +24,6 @@ coverage/
 .DS_Store
 
 # Python configs
-python/config/*.json
+backend/src/python/config/*.json
+backend/src/python/processed
 backend/src/python/config/vertex-ai-key.json

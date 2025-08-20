@@ -5,15 +5,18 @@ import { motion } from 'framer-motion'
 import { PhotoIcon, MapPinIcon, FaceSmileIcon } from '@heroicons/react/24/outline'
 import { useDropzone } from 'react-dropzone'
 import toast from 'react-hot-toast'
+import { useAccount } from 'wagmi'
 
 interface CreatePostProps {
-  onCreatePost: (post: any) => void
+  onCreatePost: (content: string) => Promise<boolean>
 }
 
 export function CreatePost({ onCreatePost }: CreatePostProps) {
   const [content, setContent] = useState('')
   const [image, setImage] = useState<File | null>(null)
   const [isPosting, setIsPosting] = useState(false)
+  
+  const { isConnected } = useAccount()
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -30,37 +33,36 @@ export function CreatePost({ onCreatePost }: CreatePostProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!content.trim()) return
+    
+    if (!isConnected) {
+      toast.error('Please connect your wallet first')
+      return
+    }
 
     setIsPosting(true)
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      const newPost = {
-        id: Date.now(),
-        author: '0x1234...5678',
-        username: 'You',
-        avatar: '/api/placeholder/40/40',
-        content,
-        image: image ? URL.createObjectURL(image) : null,
-        timestamp: 'now',
-        likes: 0,
-        comments: 0,
-        shares: 0,
-        liked: false,
-        chainId: 1,
+      const success = await onCreatePost(content)
+      if (success) {
+        setContent('')
+        setImage(null)
+        toast.success('Post created on blockchain! 🎉')
       }
-
-      onCreatePost(newPost)
-      setContent('')
-      setImage(null)
-      toast.success('Post created successfully!')
-    } catch (error) {
-      toast.error('Failed to create post')
+    } catch (error: any) {
+      console.error('Failed to create post:', error)
+      toast.error(error.message || 'Failed to create post')
     } finally {
       setIsPosting(false)
     }
+  }
+
+  if (!isConnected) {
+    return (
+      <div className="bg-dark-800/50 backdrop-blur-sm border border-dark-600 rounded-xl p-6 text-center">
+        <h3 className="text-white font-medium mb-2">Connect Your Wallet</h3>
+        <p className="text-gray-400 text-sm">Connect your wallet to create posts on the blockchain</p>
+      </div>
+    )
   }
 
   return (
@@ -72,17 +74,17 @@ export function CreatePost({ onCreatePost }: CreatePostProps) {
       <form onSubmit={handleSubmit}>
         <div className="flex space-x-4">
           <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center">
-            <span className="text-sm font-semibold text-white">Y</span>
+            <span className="text-sm font-semibold text-white">🚀</span>
           </div>
           
           <div className="flex-1">
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="What's happening in the crypto world?"
+              placeholder="Share your crypto insights with the community..."
               className="w-full bg-transparent text-white placeholder-gray-400 resize-none outline-none text-lg"
               rows={3}
-              maxLength={280}
+              maxLength={500}
             />
             
             {image && (
@@ -115,6 +117,7 @@ export function CreatePost({ onCreatePost }: CreatePostProps) {
                 className={`p-2 rounded-lg transition-colors ${
                   isDragActive ? 'bg-primary-600' : 'hover:bg-dark-700'
                 }`}
+                disabled={isPosting}
               >
                 <PhotoIcon className="h-5 w-5 text-primary-400" />
               </motion.button>
@@ -125,6 +128,7 @@ export function CreatePost({ onCreatePost }: CreatePostProps) {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+              disabled={isPosting}
             >
               <FaceSmileIcon className="h-5 w-5 text-yellow-400" />
             </motion.button>
@@ -134,14 +138,15 @@ export function CreatePost({ onCreatePost }: CreatePostProps) {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+              disabled={isPosting}
             >
               <MapPinIcon className="h-5 w-5 text-green-400" />
             </motion.button>
           </div>
 
           <div className="flex items-center space-x-4">
-            <span className={`text-sm ${content.length > 250 ? 'text-red-400' : 'text-gray-400'}`}>
-              {content.length}/280
+            <span className={`text-sm ${content.length > 450 ? 'text-red-400' : 'text-gray-400'}`}>
+              {content.length}/500
             </span>
             
             <motion.button
@@ -149,9 +154,9 @@ export function CreatePost({ onCreatePost }: CreatePostProps) {
               disabled={!content.trim() || isPosting}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed min-w-[100px]"
+              className="bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors min-w-[120px]"
             >
-              {isPosting ? 'Posting...' : 'Post'}
+              {isPosting ? '⛓️ Posting...' : '🚀 Post to Chain'}
             </motion.button>
           </div>
         </div>

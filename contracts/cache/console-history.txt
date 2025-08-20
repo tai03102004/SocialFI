@@ -1,0 +1,23 @@
+    console.log("✅ getTotalPosts:", total.toString())
+    const total = await social.getTotalPosts()
+console.log("🧪 Testing basic functions...")
+const social = SocialFiCore.attach(socialAddress)
+const SocialFiCore = await ethers.getContractFactory("SocialFiCore")
+const socialAddress = "0x610F4E6D604bB6ab0AC8d1e7fa5445324e3E9af3"
+console.log("Deploy TX:", social.deploymentTransaction().hash)
+console.log("Address:", address)
+console.log("📤 Deploy TX:", tx.hash)
+const tx = social.deploymentTransaction()
+console.log("📍 Contract address:", address)
+const address = await social.getAddress()
+const social = await SocialFi.deploy("0xD59Da846F02A6C84D79C05F80CFB3B7ae2F21879", "0x9CD763b9a34c43123a70e69168C447C3dB1d51b7")
+const SocialFi = await ethers.getContractFactory("SocialFiCore")
+clear
+quit
+que
+clear
+que
+const SocialFiCore = await ethers.getContractFactory("SocialFiCore")
+await socialFi.waitForDeployment()
+const socialFi = await SocialFiCore.deploy("0xD59Da846F02A6C84D79C05F80CFB3B7ae2F21879", "0x9CD763b9a34c43123a70e69168C447C3dB1d51b7")
+const SocialFiCore = await ethers.getContractFactory("SocialFiCore")

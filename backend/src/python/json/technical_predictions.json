@@ -1,72 +1,10 @@
 {
   "symbol": "BTC-USD",
-  "technical_analysis": {
-    "summary": {
-      "overall_signal": "STRONG_BULLISH",
-      "recommendation": "Tín hiệu mua mạnh - Nên mua",
-      "average_score": 2.0,
-      "total_score": 8,
-      "valid_indicators": 4,
-      "confidence": 60.0
-    },
-    "market_context": {
-      "current_price": 118341.69,
-      "price_change_24h": 0.72,
-      "volatility": 1.59,
-      "volume_trend": "Increasing",
-      "support_resistance": {
-        "support": 112526.91,
-        "resistance": 123344.06
-      },
-      "trend_strength": "Strong Uptrend"
-    },
-    "indicators": {
-      "rsi": {
-        "value": 53.3,
-        "signal": "NEUTRAL"
-      },
-      "macd": {
-        "trend": "SELL",
-        "message": "MACD cắt xuống Signal - Tín hiệu bán mạnh"
-      },
-      "ema": {
-        "signal": "STRONG_BULLISH",
-        "message": "Giá trên EMA21 và EMA đang tăng - Xu hướng tăng mạnh"
-      },
-      "sma": {
-        "signal": "STRONG_BULLISH",
-        "message": "Giá trên SMA20 và SMA đang tăng - Xu hướng tăng mạnh"
-      },
-      "stochastic": {
-        "signal": "BUY",
-        "message": "%K cắt lên %D - Tín hiệu mua"
-      }
-    }
-  },
-  "ai_predictions": {
-    "status": "Failed",
-    "message": "LSTM Price Prediction Tool failed to provide predictions. Assuming a continuation of the current trend with moderate volatility.",
-    "1d_prediction": "No data",
-    "7d_prediction": "No data",
-    "30d_prediction": "No data",
-    "confidence_interval": "N/A",
-    "probability_range": "N/A"
-  },
+  "technical_analysis": {},
+  "ai_predictions": {},
   "trading_signals": [
-    {
-      "signal": "Buy",
-      "entry_price": 118341.69,
-      "stop_loss": 112526.91,
-      "profit_target": 123344.06,
-      "risk_reward_ratio": 1.0,
-      "rationale": "Based on strong bullish signals from EMA, SMA, and Stochastic indicators. Support level acts as stop loss, resistance as profit target."
-    }
+    {}
   ],
-  "risk_levels": {
-    "overall_risk": "Moderate",
-    "volatility_risk": "Medium",
-    "market_risk": "Medium",
-    "liquidity_risk": "Low"
-  },
-  "confidence_score": 65
+  "risk_levels": {},
+  "confidence_score": 60
 }

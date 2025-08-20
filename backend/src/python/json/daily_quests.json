@@ -1,10 +1,10 @@
 {
-  "quest_id": "QD-20250817-001",
-  "quest_type": "Price Prediction",
-  "title": "Bitcoin Bull Run Challenge",
-  "description": "Predict the closing price of Bitcoin (BTC) at the end of the day. Submit your prediction before 23:59 UTC.",
+  "quest_id": "5",
+  "quest_type": "price_prediction",
+  "title": "API3 Price Prediction Challenge",
+  "description": "Predict the closing price of API3 on August 20, 2025. Submit your prediction within the time limit.",
   "completion_criteria": {},
-  "time_limit": 24,
+  "time_limit": 86400,
   "rewards": {},
   "difficulty": 5
 }
