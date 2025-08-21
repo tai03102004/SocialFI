@@ -26,7 +26,8 @@ ChartJS.register(
   Legend
 )
 interface TradingChartProps {
-  pair: string
+  pair: string,
+  marketData?: any
 }
 
 export function TradingChart({ pair }: TradingChartProps) {

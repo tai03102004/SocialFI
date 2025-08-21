@@ -4,7 +4,8 @@ import { motion } from 'framer-motion'
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline'
 
 interface OrderBookProps {
-  pair: string
+  pair: string,
+  marketData?: any
 }
 
 // Mock order book data
