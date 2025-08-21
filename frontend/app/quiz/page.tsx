@@ -1,3 +1,4 @@
+// app/quiz/page.tsx - Cập nhật với blockchain integration
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -14,6 +15,9 @@ import {
 import { QuizCard } from '../../components/quiz/QuizCard'
 import { QuizStats } from '../../components/quiz/QuizStats'
 import { QuizHistory } from '../../components/quiz/QuizHistory'
+import { useGameFiQuiz } from '../../hooks/useGameFiQuiz'
+import { useAccount } from 'wagmi'
+import toast from 'react-hot-toast'
 
 const mockQuiz = {
   id: 1,
@@ -50,6 +54,15 @@ export default function QuizPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedDifficulty, setSelectedDifficulty] = useState('medium')
   const [selectedCategory, setSelectedCategory] = useState('general')
+  const [canTakeQuiz, setCanTakeQuiz] = useState(true)
+
+  const { isConnected } = useAccount()
+  const { 
+    submitQuizResults, 
+    checkQuizEligibility, 
+    loading: quizLoading, 
+    isConnected: contractConnected 
+  } = useGameFiQuiz()
 
   const difficulties = [
     { id: 'easy', label: 'Easy', color: 'text-green-400', reward: '25 GUI' },
@@ -65,21 +78,89 @@ export default function QuizPage() {
     { id: 'technology', label: 'Technology', icon: '⚙️' }
   ]
 
+  useEffect(() => {
+    checkEligibility()
+  }, [isConnected, contractConnected])
+
+  const checkEligibility = async () => {
+    if (!isConnected || !contractConnected) return
+
+    try {
+      const eligible = await checkQuizEligibility()
+      setCanTakeQuiz(eligible)
+      
+      if (!eligible) {
+        toast.error('Quiz cooldown active. Come back in 24 hours!')
+      }
+    } catch (error) {
+      console.error('Failed to check eligibility:', error)
+    }
+  }
+
   const startQuiz = async () => {
+    if (!isConnected) {
+      toast.error('Please connect your wallet first')
+      return
+    }
+
+    if (!canTakeQuiz) {
+      toast.error('Quiz cooldown active. Try again in 24 hours!')
+      return
+    }
+
     setIsLoading(true)
     try {
       // Simulate API call to generate quiz
       await new Promise(resolve => setTimeout(resolve, 1500))
-      setCurrentQuiz(mockQuiz)
+      
+      // Update quiz with selected difficulty and category
+      const updatedQuiz = {
+        ...mockQuiz,
+        difficulty: selectedDifficulty,
+        category: selectedCategory
+      }
+      
+      setCurrentQuiz(updatedQuiz)
     } catch (error) {
       console.error('Failed to load quiz:', error)
+      toast.error('Failed to generate quiz')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleQuizComplete = (results: any) => {
+  const handleQuizComplete = async (results: any) => {
     console.log('Quiz completed:', results)
+    
+    if (!isConnected || !contractConnected) {
+      toast.error('Wallet not connected. Results not saved.')
+      setCurrentQuiz(null)
+      return
+    }
+
+    try {
+      // Submit results to blockchain
+      toast.loading('Submitting results to blockchain...')
+      
+      await submitQuizResults(
+        selectedCategory,
+        selectedDifficulty,
+        results.score,
+        results.total
+      )
+
+      toast.dismiss()
+      toast.success(`🎉 Quiz completed! Earned ${results.reward} GUI tokens`)
+      
+      // Update eligibility
+      setCanTakeQuiz(false)
+      
+    } catch (error) {
+      console.error('Failed to submit quiz results:', error)
+      toast.dismiss()
+      toast.error('Failed to save results to blockchain')
+    }
+
     setCurrentQuiz(null)
   }
 
@@ -112,6 +193,18 @@ export default function QuizPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-8 space-y-8">
+            {/* Connection Status */}
+            {!isConnected && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-6 text-center"
+              >
+                <h3 className="text-yellow-400 font-medium mb-2">Connect Your Wallet</h3>
+                <p className="text-gray-400 text-sm">Connect your wallet to participate in quizzes and earn rewards</p>
+              </motion.div>
+            )}
+
             {/* Quiz Setup */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -134,11 +227,12 @@ export default function QuizPage() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setSelectedDifficulty(diff.id)}
+                      disabled={!canTakeQuiz}
                       className={`p-6 rounded-xl border-2 transition-all ${
                         selectedDifficulty === diff.id
                           ? 'border-primary-500 bg-primary-500/20'
                           : 'border-dark-600 bg-dark-700/30 hover:border-dark-500'
-                      }`}
+                      } ${!canTakeQuiz ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <div className="text-center">
                         <h4 className={`text-lg font-semibold ${diff.color} mb-2`}>
@@ -166,11 +260,12 @@ export default function QuizPage() {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setSelectedCategory(category.id)}
+                      disabled={!canTakeQuiz}
                       className={`p-4 rounded-xl border transition-all ${
                         selectedCategory === category.id
                           ? 'border-secondary-500 bg-secondary-500/20'
                           : 'border-dark-600 bg-dark-700/30 hover:border-dark-500'
-                      }`}
+                      } ${!canTakeQuiz ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <div className="text-center">
                         <span className="text-2xl block mb-2">{category.icon}</span>
@@ -187,14 +282,18 @@ export default function QuizPage() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={startQuiz}
-                  disabled={isLoading}
-                  className="btn-primary text-lg px-12 py-4 disabled:opacity-50"
+                  disabled={isLoading || !isConnected || !canTakeQuiz || quizLoading}
+                  className="btn-primary text-lg px-12 py-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <div className="flex items-center space-x-2">
                       <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
                       <span>Generating Quiz...</span>
                     </div>
+                  ) : !isConnected ? (
+                    <span>Connect Wallet First</span>
+                  ) : !canTakeQuiz ? (
+                    <span>Cooldown Active</span>
                   ) : (
                     <div className="flex items-center space-x-2">
                       <FireIcon className="h-6 w-6" />
@@ -211,10 +310,11 @@ export default function QuizPage() {
                   <div className="text-sm text-blue-200">
                     <p className="font-medium mb-1">Quiz Rules:</p>
                     <ul className="space-y-1 text-blue-300">
-                      <li>• 5 questions per quiz</li>
+                      <li>• 3 questions per quiz</li>
                       <li>• 30 seconds per question</li>
-                      <li>• Earn bonus for streak answers</li>
+                      <li>• Results saved on blockchain</li>
                       <li>• Daily cooldown: 24 hours</li>
+                      <li>• GUI rewards based on performance</li>
                     </ul>
                   </div>
                 </div>

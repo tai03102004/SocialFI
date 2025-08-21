@@ -11,7 +11,7 @@ const CONTRACTS_CONFIG = {
   rpcUrl: "https://zetachain-athens-evm.blockpi.network/v1/rpc/public",
   addresses: {
     AIOracle: "0x9CD763b9a34c43123a70e69168C447C3dB1d51b7",
-    GameFi: "0x2b0F0981f21034529790f1439B449cd3a690A2c0",
+    GameFi: "0x403Af55848d2BE8E351e0F29E8e425aaDB4CBBFE",
     SocialFi: "0x78EB07835f4d9281F85DAB76B353b0F3EEDa6469",
     NFTAchievements: "0xC11531dE0165Aa654292647DF35c3340fB4e21B2",
     GUIToken: "0xD59Da846F02A6C84D79C05F80CFB3B7ae2F21879",
@@ -31,6 +31,11 @@ const CONTRACT_ABIS = {
     "function getPrediction(uint256 predictionId) view returns (tuple(address player, uint256 predictedPrice, uint256 aiPredictedPrice, uint256 actualPrice, uint256 playerConfidence, uint256 aiConfidence, uint256 timestamp, bool resolved, bool playerCorrect, bool aiCorrect, string asset))",
     "function getActiveQuests() view returns (tuple(uint256 id, string title, string description, string questType, uint256 reward, uint256 deadline, bool active)[])",
     "function completeQuest(uint256 questId)",
+    // Thêm quiz functions
+    "function submitQuizResults(uint8 category, uint8 difficulty, uint8 score, uint8 totalQuestions)",
+    "function getQuizStats(address player) view returns (uint256 totalQuizzes, uint256 averageScore, uint256 bestStreak, uint256 totalRewards)",
+    "function canTakeQuiz(address player) view returns (bool)",
+    "event QuizCompleted(address indexed player, uint8 category, uint8 difficulty, uint8 score, uint256 reward)",
   ],
   SocialFi: [
     "function createPost(string content)",
@@ -44,10 +49,23 @@ const CONTRACT_ABIS = {
     "event PostLiked(uint256 indexed postId, address indexed liker)",
   ],
   NFTAchievements: [
+    // Read functions
     "function getPlayerAchievements(address player) view returns (uint256[])",
     "function hasAchievement(address player, uint256 achievementId) view returns (bool)",
     "function getAchievement(uint256 achievementId) view returns (tuple(string name, string description, uint256 requirement, uint8 achievementType, bool active))",
+    "function tokenURI(uint256 tokenId) view returns (string)",
     "function balanceOf(address owner) view returns (uint256)",
+    "function ownerOf(uint256 tokenId) view returns (address)",
+    "function totalSupply() view returns (uint256)",
+
+    // Write functions
+    "function mintAchievement(address player, uint256 achievementId)",
+    "function createAchievement(string memory name, string memory description, uint256 requirement, uint8 achievementType)",
+    "function setAchievementActive(uint256 achievementId, bool active)",
+
+    // Events
+    "event AchievementUnlocked(address indexed player, uint256 indexed achievementId)",
+    "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
   ],
   GUIToken: [
     "function balanceOf(address account) view returns (uint256)",

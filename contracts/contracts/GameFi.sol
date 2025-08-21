@@ -279,4 +279,99 @@ contract GameFiCore is Ownable {
     function getQuest(uint256 questId) external view returns (Quest memory) {
         return quests[questId];
     }
+
+    // Thêm vào GameFi.sol
+    struct QuizStats {
+        uint256 totalQuizzes;
+        uint256 totalScore;
+        uint256 bestStreak;
+        uint256 currentStreak;
+        uint256 totalRewards;
+        uint256 lastQuizTime;
+    }
+
+    mapping(address => QuizStats) public playerQuizStats;
+
+    event QuizCompleted(
+        address indexed player,
+        uint8 category,
+        uint8 difficulty,
+        uint8 score,
+        uint256 reward
+    );
+
+    function submitQuizResults(
+        uint8 category,
+        uint8 difficulty,
+        uint8 score,
+        uint8 totalQuestions
+    ) external {
+        require(canTakeQuiz(msg.sender), "Quiz cooldown active");
+
+        QuizStats storage stats = playerQuizStats[msg.sender];
+
+        // Calculate reward
+        uint256 baseReward = difficulty == 2
+            ? 100 * 1e18
+            : difficulty == 1
+                ? 50 * 1e18
+                : 25 * 1e18;
+        uint256 reward = (baseReward * score) / totalQuestions;
+
+        // Update stats
+        stats.totalQuizzes++;
+        stats.totalScore += score;
+        stats.totalRewards += reward;
+        stats.lastQuizTime = block.timestamp;
+
+        // Update streak
+        if (score >= (totalQuestions * 70) / 100) {
+            // 70% threshold
+            stats.currentStreak++;
+            if (stats.currentStreak > stats.bestStreak) {
+                stats.bestStreak = stats.currentStreak;
+            }
+        } else {
+            stats.currentStreak = 0;
+        }
+
+        // Transfer reward
+        IERC20(guiToken).transfer(msg.sender, reward);
+
+        // Update player score
+        players[msg.sender].score += reward / 1e18;
+
+        emit QuizCompleted(msg.sender, category, difficulty, score, reward);
+    }
+
+    function canTakeQuiz(address player) public view returns (bool) {
+        return
+            block.timestamp >= playerQuizStats[player].lastQuizTime + 24 hours;
+    }
+
+    function getQuizStats(
+        address player
+    )
+        external
+        view
+        returns (
+            uint256 totalQuizzes,
+            uint256 averageScore,
+            uint256 bestStreak,
+            uint256 totalRewards
+        )
+    {
+        QuizStats memory stats = playerQuizStats[player];
+
+        uint256 avgScore = stats.totalQuizzes > 0
+            ? (stats.totalScore * 100) / (stats.totalQuizzes * 5)
+            : 0; // Assuming 5 questions max
+
+        return (
+            stats.totalQuizzes,
+            avgScore,
+            stats.bestStreak,
+            stats.totalRewards
+        );
+    }
 }

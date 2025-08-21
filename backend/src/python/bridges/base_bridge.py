@@ -20,7 +20,7 @@ class BaseBridge:
         # Contract addresses
         self.contract_addresses = {
             "AIOracle": os.getenv('AIOracle', "0x9CD763b9a34c43123a70e69168C447C3dB1d51b7"),
-            "GameFi": os.getenv('GameFi', "0x2b0F0981f21034529790f1439B449cd3a690A2c0"),
+            "GameFi": os.getenv('GameFi', "0x403Af55848d2BE8E351e0F29E8e425aaDB4CBBFE"),
             "SocialFi": os.getenv('SocialFi', "0x6236679Bae564c5c5DaC11156df082dEDfEb7a86"),
             "NFTAchievements": os.getenv('NFTAchievements', "0xC11531dE0165Aa654292647DF35c3340fB4e21B2"),
             "GUIToken": os.getenv('GUIToken', "0xD59Da846F02A6C84D79C05F80CFB3B7ae2F21879")

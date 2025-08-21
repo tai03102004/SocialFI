@@ -1,7 +1,12 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { TrophyIcon, SparklesIcon, ClockIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+import { useNFTAchievements } from '../../hooks/useNFTAchievements'
+import { useGameFi } from '../../hooks/useEnhancedContract'
+import { useAccount } from 'wagmi'
+import toast from 'react-hot-toast'
 
 interface Milestone {
   id: number
@@ -12,13 +17,139 @@ interface Milestone {
   reward: string
   chain: string
   rarity: string
+  achievementId: number
+  completed: boolean
 }
 
-interface MintingProgressProps {
-  milestones: Milestone[]
-}
+export function MintingProgress() {
+  const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [mintingAchievement, setMintingAchievement] = useState<number | null>(null)
 
-export function MintingProgress({ milestones }: MintingProgressProps) {
+  const { getPlayerStats } = useGameFi()
+  const { getAchievement, hasAchievement, mintAchievement, loading: nftLoading, isConnected } = useNFTAchievements()
+  const { address, isConnected: walletConnected } = useAccount()
+
+  useEffect(() => {
+    if (walletConnected && isConnected) {
+      loadMilestones()
+    }
+  }, [walletConnected, isConnected])
+
+  const loadMilestones = async () => {
+    try {
+      setIsLoading(true)
+      console.log('🎯 Loading achievement milestones...')
+
+      // Get player stats from GameFi contract
+      const playerStats = await getPlayerStats()
+      
+      if (!playerStats) {
+        console.log('No player stats found')
+        setMilestones([])
+        return
+      }
+
+      // Define available achievements
+      const achievementDefinitions = [
+        {
+          id: 1,
+          achievementId: 1,
+          name: 'First Prediction',
+          description: 'Make your first AI-guided prediction',
+          target: 1,
+          getProgress: (stats: any) => Number(stats.totalPredictions),
+          reward: 'Starter NFT',
+          chain: 'ZetaChain',
+          rarity: 'Common'
+        },
+        {
+          id: 2,
+          achievementId: 2,
+          name: 'Social Starter',
+          description: 'Create your first post',
+          target: 1,
+          getProgress: (stats: any) => 0, // TODO: Implement social stats
+          reward: 'Social Badge NFT',
+          chain: 'ZetaChain',
+          rarity: 'Common'
+        },
+        {
+          id: 3,
+          achievementId: 3,
+          name: 'AI Follower',
+          description: 'Follow AI recommendations 5 times',
+          target: 5,
+          getProgress: (stats: any) => Number(stats.aiFollowScore) / 20, // Assuming aiFollowScore scales
+          reward: 'AI Companion NFT',
+          chain: 'ZetaChain',
+          rarity: 'Rare'
+        },
+        {
+          id: 4,
+          achievementId: 4,
+          name: 'Prediction Master',
+          description: 'Make 50 correct predictions',
+          target: 50,
+          getProgress: (stats: any) => Number(stats.correctPredictions),
+          reward: 'Master Predictor NFT',
+          chain: 'Ethereum',
+          rarity: 'Epic'
+        },
+        {
+          id: 5,
+          achievementId: 5,
+          name: 'Accuracy Legend',
+          description: 'Achieve 90% prediction accuracy',
+          target: 90,
+          getProgress: (stats: any) => Number(stats.accuracy),
+          reward: 'Legendary Oracle NFT',
+          chain: 'ZetaChain',
+          rarity: 'Legendary'
+        }
+      ]
+
+      // Check completion status and calculate progress
+      const milestonesWithProgress = await Promise.all(
+        achievementDefinitions.map(async (def) => {
+          const progress = def.getProgress(playerStats)
+          const completed = await hasAchievement(def.achievementId)
+          
+          return {
+            ...def,
+            progress: Math.min(progress, def.target),
+            completed
+          }
+        })
+      )
+
+      console.log('✅ Milestones loaded:', milestonesWithProgress)
+      setMilestones(milestonesWithProgress)
+    } catch (error) {
+      console.error('Failed to load milestones:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleMintAchievement = async (milestone: Milestone) => {
+    if (!address || milestone.progress < milestone.target) return
+
+    try {
+      setMintingAchievement(milestone.id)
+      
+      await mintAchievement(address, milestone.achievementId)
+      
+      // Reload milestones to update completion status
+      await loadMilestones()
+      
+    } catch (error) {
+      console.error('Failed to mint achievement:', error)
+    } finally {
+      setMintingAchievement(null)
+    }
+  }
+
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
       case 'Legendary': return 'from-yellow-500 to-orange-500'
@@ -38,17 +169,65 @@ export function MintingProgress({ milestones }: MintingProgressProps) {
     }
   }
 
+  if (!walletConnected) {
+    return (
+      <div className="bg-dark-800/50 backdrop-blur-sm border border-dark-600 rounded-xl p-8 text-center">
+        <SparklesIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-xl font-semibold text-white mb-2">Connect Your Wallet</h3>
+        <p className="text-gray-400">Connect your wallet to view auto-mint progress</p>
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="bg-dark-800/50 backdrop-blur-sm border border-dark-600 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-white mb-6 flex items-center">
+          <SparklesIcon className="h-5 w-5 mr-2 text-purple-400" />
+          Auto-Mint Progress
+        </h3>
+        
+        <div className="space-y-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="border border-dark-600 rounded-xl p-6 animate-pulse">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-12 h-12 bg-gray-600 rounded-xl"></div>
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-600 rounded mb-2"></div>
+                  <div className="h-3 bg-gray-600 rounded w-3/4"></div>
+                </div>
+              </div>
+              <div className="h-3 bg-gray-600 rounded mb-4"></div>
+              <div className="h-8 bg-gray-600 rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-dark-800/50 backdrop-blur-sm border border-dark-600 rounded-xl p-6">
-      <h3 className="text-lg font-semibold text-white mb-6 flex items-center">
-        <SparklesIcon className="h-5 w-5 mr-2 text-purple-400" />
-        Auto-Mint Progress
-      </h3>
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold text-white flex items-center">
+          <SparklesIcon className="h-5 w-5 mr-2 text-purple-400" />
+          Auto-Mint Progress
+        </h3>
+        <button 
+          onClick={loadMilestones}
+          disabled={isLoading}
+          className="text-primary-400 hover:text-primary-300 text-sm font-medium disabled:opacity-50"
+        >
+          {isLoading ? '🔄' : '🔄 Refresh'}
+        </button>
+      </div>
 
       <div className="space-y-6">
         {milestones.map((milestone, index) => {
           const progressPercent = (milestone.progress / milestone.target) * 100
-          const isCompleted = milestone.progress >= milestone.target
+          const isCompleted = milestone.completed
+          const canMint = milestone.progress >= milestone.target && !isCompleted
+          const isMinting = mintingAchievement === milestone.id
 
           return (
             <motion.div
@@ -59,7 +238,9 @@ export function MintingProgress({ milestones }: MintingProgressProps) {
               className={`border rounded-xl p-6 transition-all duration-300 ${
                 isCompleted 
                   ? 'border-green-500/50 bg-green-500/10' 
-                  : 'border-dark-600 bg-dark-700/30 hover:border-primary-500/50'
+                  : canMint
+                    ? 'border-yellow-500/50 bg-yellow-500/10'
+                    : 'border-dark-600 bg-dark-700/30 hover:border-primary-500/50'
               }`}
             >
               {/* Header */}
@@ -79,8 +260,10 @@ export function MintingProgress({ milestones }: MintingProgressProps) {
                 <div className="text-right">
                   {isCompleted ? (
                     <CheckCircleIcon className="h-8 w-8 text-green-400" />
+                  ) : canMint ? (
+                    <SparklesIcon className="h-8 w-8 text-yellow-400 animate-pulse" />
                   ) : (
-                    <ClockIcon className="h-8 w-8 text-yellow-400" />
+                    <ClockIcon className="h-8 w-8 text-gray-400" />
                   )}
                 </div>
               </div>
@@ -120,7 +303,9 @@ export function MintingProgress({ milestones }: MintingProgressProps) {
                 <div className="text-right">
                   <p className="text-sm font-medium text-white">{milestone.reward}</p>
                   {isCompleted ? (
-                    <p className="text-xs text-green-400">Ready to claim!</p>
+                    <p className="text-xs text-green-400">Claimed!</p>
+                  ) : canMint ? (
+                    <p className="text-xs text-yellow-400">Ready to mint!</p>
                   ) : (
                     <p className="text-xs text-gray-400">
                       {milestone.target - milestone.progress} more to go
@@ -130,15 +315,27 @@ export function MintingProgress({ milestones }: MintingProgressProps) {
               </div>
 
               {/* Mint Button */}
-              {isCompleted && (
+              {canMint && (
                 <motion.button
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className={`w-full mt-4 py-3 bg-gradient-to-r ${getRarityColor(milestone.rarity)} text-white font-medium rounded-lg hover:opacity-90 transition-opacity`}
+                  onClick={() => handleMintAchievement(milestone)}
+                  disabled={isMinting || nftLoading}
+                  className={`w-full mt-4 py-3 bg-gradient-to-r ${getRarityColor(milestone.rarity)} text-white font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  Mint NFT Now
+                  {isMinting ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      <span>Minting NFT...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center space-x-2">
+                      <SparklesIcon className="h-5 w-5" />
+                      <span>Mint Achievement NFT</span>
+                    </div>
+                  )}
                 </motion.button>
               )}
             </motion.div>
@@ -153,10 +350,10 @@ export function MintingProgress({ milestones }: MintingProgressProps) {
           <span className="text-sm font-medium text-blue-300">How Auto-Mint Works</span>
         </div>
         <div className="text-xs text-blue-200 space-y-1">
-          <p>• NFTs are automatically minted when you complete milestones</p>
-          <p>• Each NFT is unique and reflects your achievement stats</p>
+          <p>• NFTs are minted when you complete achievement milestones</p>
+          <p>• Each NFT is unique and reflects your progress and stats</p>
           <p>• Cross-chain compatibility via ZetaChain Universal Smart Contracts</p>
-          <p>• Gas fees are automatically deducted from your GUI token balance</p>
+          <p>• Achievement data is permanently stored on-chain</p>
         </div>
       </div>
     </div>

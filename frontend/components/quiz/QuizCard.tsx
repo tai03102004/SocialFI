@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { ClockIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
+import { ClockIcon, CheckCircleIcon, XCircleIcon, ArrowRightIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'
 
 interface Question {
   id: number
@@ -34,10 +34,8 @@ export function QuizCard({ quiz, onComplete }: QuizCardProps) {
 
   useEffect(() => {
     if (timeLeft > 0 && !showResults) {
-      const timer = setInterval(() => {
-        setTimeLeft(prev => prev - 1)
-      }, 1000)
-      return () => clearInterval(timer)
+      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
+      return () => clearTimeout(timer)
     } else if (timeLeft === 0) {
       handleQuizComplete()
     }
@@ -51,20 +49,18 @@ export function QuizCard({ quiz, onComplete }: QuizCardProps) {
     setSelectedAnswers(newAnswers)
     setIsAnswered(true)
 
-    // Auto advance after 1 second
+    // Auto advance after 1.5 seconds
     setTimeout(() => {
       if (currentQuestion < quiz.questions.length - 1) {
-        setCurrentQuestion(prev => prev + 1)
+        setCurrentQuestion(currentQuestion + 1)
         setIsAnswered(false)
       } else {
         handleQuizComplete()
       }
-    }, 1000)
+    }, 1500)
   }
 
   const handleQuizComplete = () => {
-    setShowResults(true)
-    
     const correctAnswers = selectedAnswers.filter((answer, index) => 
       answer === quiz.questions[index]?.correctAnswer
     ).length
@@ -73,18 +69,19 @@ export function QuizCard({ quiz, onComplete }: QuizCardProps) {
       score: correctAnswers,
       total: quiz.questions.length,
       percentage: Math.round((correctAnswers / quiz.questions.length) * 100),
-      reward: calculateReward(correctAnswers, quiz.questions.length, quiz.difficulty)
+      reward: calculateReward(correctAnswers, quiz.questions.length, quiz.difficulty),
+      answers: selectedAnswers,
+      timeSpent: quiz.timeLimit - timeLeft
     }
 
-    setTimeout(() => {
-      onComplete(results)
-    }, 3000)
+    setShowResults(true)
+    setTimeout(() => onComplete(results), 3000)
   }
 
   const calculateReward = (correct: number, total: number, difficulty: string) => {
     const baseReward = difficulty === 'hard' ? 100 : difficulty === 'medium' ? 50 : 25
     const percentage = correct / total
-    return Math.round(baseReward * percentage)
+    return Math.floor(baseReward * percentage)
   }
 
   if (showResults) {
@@ -92,143 +89,201 @@ export function QuizCard({ quiz, onComplete }: QuizCardProps) {
       answer === quiz.questions[index]?.correctAnswer
     ).length
     const percentage = Math.round((correctAnswers / quiz.questions.length) * 100)
-    const reward = calculateReward(correctAnswers, quiz.questions.length, quiz.difficulty)
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex items-center justify-center p-4">
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="bg-dark-800/50 backdrop-blur-sm border border-dark-600 rounded-xl p-8 max-w-2xl w-full text-center"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-dark-800/50 backdrop-blur-sm border border-dark-600 rounded-xl p-8 max-w-md w-full text-center"
         >
-          <div className={`w-20 h-20 mx-auto mb-6 rounded-full flex items-center justify-center ${
-            percentage >= 70 ? 'bg-green-500/20' : 'bg-red-500/20'
-          }`}>
-            {percentage >= 70 ? (
-              <CheckCircleIcon className="h-12 w-12 text-green-400" />
+          <div className="mb-6">
+            {percentage >= 80 ? (
+              <div className="text-6xl mb-4">🎉</div>
+            ) : percentage >= 60 ? (
+              <div className="text-6xl mb-4">👍</div>
             ) : (
-              <XCircleIcon className="h-12 w-12 text-red-400" />
+              <div className="text-6xl mb-4">📚</div>
             )}
+            
+            <h2 className="text-2xl font-bold text-white mb-2">Quiz Complete!</h2>
+            <p className="text-gray-400">Great job on completing the quiz</p>
           </div>
 
-          <h2 className="text-3xl font-bold text-white mb-4">Quiz Complete!</h2>
-          
-          <div className="grid grid-cols-3 gap-6 mb-8">
-            <div>
-              <p className="text-3xl font-bold text-primary-400">{correctAnswers}</p>
-              <p className="text-gray-400">Correct</p>
+          <div className="space-y-4 mb-6">
+            <div className="bg-dark-700/50 border border-dark-600 rounded-lg p-4">
+              <p className="text-sm text-gray-400 mb-1">Your Score</p>
+              <p className="text-3xl font-bold text-green-400">{correctAnswers}/{quiz.questions.length}</p>
+              <p className="text-sm text-gray-400">{percentage}% Accuracy</p>
             </div>
-            <div>
-              <p className="text-3xl font-bold text-gradient">{percentage}%</p>
-              <p className="text-gray-400">Score</p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold text-yellow-400">+{reward}</p>
-              <p className="text-gray-400">GUI Rewards</p>
+
+            <div className="bg-dark-700/50 border border-dark-600 rounded-lg p-4">
+              <p className="text-sm text-gray-400 mb-1">Reward Earned</p>
+              <p className="text-2xl font-bold text-yellow-400">
+                +{calculateReward(correctAnswers, quiz.questions.length, quiz.difficulty)} GUI
+              </p>
             </div>
           </div>
 
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${percentage}%` }}
-            className="h-2 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full mb-6 mx-auto max-w-md"
-          />
-          
-          <p className="text-gray-300 mb-6">
-            {percentage >= 90 ? 'Excellent work! 🏆' :
-             percentage >= 70 ? 'Great job! 🎉' :
-             percentage >= 50 ? 'Good effort! 👍' : 'Keep practicing! 💪'}
-          </p>
+          <div className="text-sm text-gray-400">
+            Submitting results to blockchain...
+          </div>
         </motion.div>
       </div>
     )
   }
 
   const question = quiz.questions[currentQuestion]
+  const progress = ((currentQuestion + 1) / quiz.questions.length) * 100
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex items-center justify-center px-4">
-      <div className="bg-dark-800/50 backdrop-blur-sm border border-dark-600 rounded-xl p-8 max-w-4xl w-full">
+    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 p-4">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-white">Crypto Quiz</h2>
-            <p className="text-gray-400">Question {currentQuestion + 1} of {quiz.questions.length}</p>
-          </div>
-          
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 bg-orange-500/20 px-3 py-2 rounded-lg">
-              <ClockIcon className="h-5 w-5 text-orange-400" />
-              <span className="text-orange-400 font-medium">{timeLeft}s</span>
+            <button className="text-gray-400 hover:text-white">
+              <ArrowLeftIcon className="h-6 w-6" />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-white">
+                {quiz.category.charAt(0).toUpperCase() + quiz.category.slice(1)} Quiz
+              </h1>
+              <p className="text-sm text-gray-400 capitalize">{quiz.difficulty} Level</p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 text-yellow-400">
+              <ClockIcon className="h-5 w-5" />
+              <span className="font-mono font-bold">
+                {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+              </span>
+            </div>
+            <div className="text-sm text-gray-400">
+              {currentQuestion + 1} / {quiz.questions.length}
             </div>
           </div>
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full bg-dark-600 rounded-full h-2 mb-8">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${((currentQuestion + 1) / quiz.questions.length) * 100}%` }}
-            className="h-2 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full"
-            transition={{ duration: 0.5 }}
-          />
-        </div>
-
-        {/* Question */}
         <div className="mb-8">
-          <h3 className="text-xl font-semibold text-white mb-6 leading-relaxed">
-            {question.question}
-          </h3>
-          
-          <div className="grid grid-cols-1 gap-4">
-            {question.options.map((option, index) => (
-              <motion.button
-                key={index}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleAnswerSelect(index)}
-                disabled={isAnswered}
-                className={`p-4 text-left rounded-lg border transition-all duration-300 ${
-                  isAnswered
-                    ? index === question.correctAnswer
-                      ? 'bg-green-500/20 border-green-500/50 text-green-300'
-                      : selectedAnswers[currentQuestion] === index
-                      ? 'bg-red-500/20 border-red-500/50 text-red-300'
-                      : 'bg-dark-700/50 border-dark-600 text-gray-400'
-                    : 'bg-dark-700/50 border-dark-600 hover:border-primary-500/50 text-white hover:bg-dark-600/50'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                    isAnswered && index === question.correctAnswer
-                      ? 'border-green-400 bg-green-400'
-                      : isAnswered && selectedAnswers[currentQuestion] === index
-                      ? 'border-red-400 bg-red-400'
-                      : 'border-gray-500'
-                  }`}>
-                    <span className="text-xs font-bold">
-                      {String.fromCharCode(65 + index)}
-                    </span>
-                  </div>
-                  <span>{option}</span>
-                </div>
-              </motion.button>
-            ))}
+          <div className="w-full bg-dark-600 rounded-full h-2">
+            <motion.div
+              className="h-2 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.5 }}
+            />
           </div>
         </div>
 
-        {/* Explanation */}
-        {isAnswered && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4"
+        {/* Question */}
+        <motion.div
+          key={currentQuestion}
+          initial={{ opacity: 0, x: 50 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -50 }}
+          className="bg-dark-800/50 backdrop-blur-sm border border-dark-600 rounded-xl p-8"
+        >
+          <h2 className="text-2xl font-bold text-white mb-8 leading-relaxed">
+            {question.question}
+          </h2>
+
+          <div className="grid gap-4">
+            {question.options.map((option, index) => {
+              const isSelected = selectedAnswers[currentQuestion] === index
+              const isCorrect = index === question.correctAnswer
+              const showAnswer = isAnswered
+
+              return (
+                <motion.button
+                  key={index}
+                  whileHover={{ scale: isAnswered ? 1 : 1.02 }}
+                  whileTap={{ scale: isAnswered ? 1 : 0.98 }}
+                  onClick={() => handleAnswerSelect(index)}
+                  disabled={isAnswered}
+                  className={`p-6 rounded-xl border-2 text-left transition-all ${
+                    isAnswered 
+                      ? isSelected
+                        ? isCorrect
+                          ? 'border-green-500 bg-green-500/20 text-green-300'
+                          : 'border-red-500 bg-red-500/20 text-red-300'
+                        : isCorrect
+                          ? 'border-green-500 bg-green-500/10 text-green-300'
+                          : 'border-dark-600 bg-dark-700/30 text-gray-400'
+                      : 'border-dark-600 bg-dark-700/30 text-white hover:border-primary-500 hover:bg-primary-500/10'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{option}</span>
+                    {showAnswer && (
+                      <div className="flex-shrink-0 ml-4">
+                        {isCorrect ? (
+                          <CheckCircleIcon className="h-6 w-6 text-green-400" />
+                        ) : isSelected ? (
+                          <XCircleIcon className="h-6 w-6 text-red-400" />
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                </motion.button>
+              )
+            })}
+          </div>
+
+          {/* Explanation */}
+          {isAnswered && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg"
+            >
+              <h4 className="font-medium text-blue-300 mb-2">Explanation:</h4>
+              <p className="text-sm text-blue-200">{question.explanation}</p>
+            </motion.div>
+          )}
+        </motion.div>
+
+        {/* Navigation */}
+        <div className="flex justify-between items-center mt-8">
+          <button
+            onClick={() => {
+              if (currentQuestion > 0) {
+                setCurrentQuestion(currentQuestion - 1)
+                setIsAnswered(selectedAnswers[currentQuestion - 1] !== undefined)
+              }
+            }}
+            disabled={currentQuestion === 0}
+            className="flex items-center space-x-2 px-4 py-2 bg-dark-700 border border-dark-600 rounded-lg text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed hover:text-white transition-colors"
           >
-            <p className="text-blue-200 text-sm leading-relaxed">
-              <strong>Explanation:</strong> {question.explanation}
-            </p>
-          </motion.div>
-        )}
+            <ArrowLeftIcon className="h-4 w-4" />
+            <span>Previous</span>
+          </button>
+
+          {isAnswered && currentQuestion < quiz.questions.length - 1 && (
+            <button
+              onClick={() => {
+                setCurrentQuestion(currentQuestion + 1)
+                setIsAnswered(selectedAnswers[currentQuestion + 1] !== undefined)
+              }}
+              className="flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg text-white transition-colors"
+            >
+              <span>Next</span>
+              <ArrowRightIcon className="h-4 w-4" />
+            </button>
+          )}
+
+          {isAnswered && currentQuestion === quiz.questions.length - 1 && (
+            <button
+              onClick={handleQuizComplete}
+              className="flex items-center space-x-2 px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white font-medium transition-colors"
+            >
+              <span>Complete Quiz</span>
+              <CheckCircleIcon className="h-5 w-5" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
