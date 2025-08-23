@@ -67,8 +67,12 @@ export function useGameFiQuiz() {
           totalQuestions,
         });
 
-        // Submit to smart contract
-        const tx = await contracts.GameFi.connect(signer).submitQuizResults(
+        // ✅ Type cast contract to any to access the function
+        const gamefiContract = contracts.GameFi as any;
+        const contractWithSigner = gamefiContract.connect(signer);
+
+        // ✅ Call submitQuizResults function
+        const tx = await contractWithSigner.submitQuizResults(
           categoryNum,
           difficultyNum,
           score,
@@ -81,10 +85,12 @@ export function useGameFiQuiz() {
         const receipt = await tx.wait();
         console.log("✅ Quiz results submitted successfully:", receipt.hash);
 
+        toast.success(`Quiz completed! Score: ${score}/${totalQuestions}`);
         return true;
       } catch (error: any) {
         console.error("Failed to submit quiz results:", error);
         setError(error.message || "Failed to submit quiz results");
+        toast.error("Failed to submit quiz results");
         throw error;
       } finally {
         setLoading(false);
