@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { PhotoIcon, StarIcon, ShoppingBagIcon, ArrowsUpDownIcon, TrophyIcon } from '@heroicons/react/24/outline'
+import { StarIcon, ShoppingBagIcon, ArrowsUpDownIcon, TrophyIcon } from '@heroicons/react/24/outline'
 import { useNFTAchievements } from '../../hooks/useNFTAchievements'
 import { useAccount } from 'wagmi'
 

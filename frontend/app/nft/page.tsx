@@ -4,9 +4,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { 
   SparklesIcon, 
-  GiftIcon, 
   TrophyIcon,
-  ArrowPathRoundedSquareIcon,
   HeartIcon
 } from '@heroicons/react/24/outline'
 import { NFTCollection } from '../../components/nft/NFTCollection'
